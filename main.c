@@ -78,7 +78,7 @@ struct globals *alfred_init(int argc, char *argv[])
 	globals->best_server = NULL;
 	globals->clientmode_version = 0;
 
-	while ((opt = getopt_long(argc, argv, "ms:r:hi:", long_options,
+	while ((opt = getopt_long(argc, argv, "ms:r:hi:vV:", long_options,
 				  &opt_ind)) != -1) {
 		switch (opt) {
 		case 'r':
