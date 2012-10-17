@@ -217,7 +217,7 @@ int send_alfred_packet(struct globals *globals, uint8_t *dest, void *buf,
 	char *sendbuf;
 
 	sendbuf = malloc(sizeof(*ethhdr) + length);
-	if (!buf)
+	if (!sendbuf)
 		return -1;
 
 	ethhdr = (struct ethhdr *)sendbuf;
