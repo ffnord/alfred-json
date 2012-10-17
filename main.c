@@ -67,10 +67,10 @@ struct globals *alfred_init(int argc, char *argv[])
 	};
 
 	globals = malloc(sizeof(*globals));
-	memset(globals, 0, sizeof(*globals));
-
 	if (!globals)
 		return NULL;
+
+	memset(globals, 0, sizeof(*globals));
 
 	globals->opmode = OPMODE_SLAVE;
 	globals->clientmode = CLIENT_NONE;
