@@ -19,6 +19,10 @@
  *
  */
 
+#ifndef SOURCE_VERSION
+#define SOURCE_VERSION			"2012.?.?"
+#endif
+
 #include <stdint.h>
 #include <linux/if_ether.h>
 #include <time.h>
