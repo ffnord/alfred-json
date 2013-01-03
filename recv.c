@@ -32,6 +32,7 @@
 #include <linux/if_ether.h>
 #include <linux/filter.h>
 #include "alfred.h"
+#include "batadv_query.h"
 
 int process_alfred_push_data(struct globals *globals, struct ethhdr *ethhdr,
 			     struct alfred_packet *packet)
@@ -105,6 +106,7 @@ int process_alfred_announce_master(struct globals *globals,
 				   struct alfred_packet *packet)
 {
 	struct server *server;
+	struct ether_addr *macaddr;
 
 	if (packet->version != ALFRED_VERSION)
 		return -1;
@@ -124,8 +126,12 @@ int process_alfred_announce_master(struct globals *globals,
 	}
 
 	server->last_seen = time(NULL);
-	server->tq = 255;
-	/* TODO: update TQ */
+	macaddr = translate_mac(globals->interface,
+				(struct ether_addr *)server->address);
+	if (macaddr)
+		server->tq = get_tq(globals->interface, macaddr);
+	else
+		server->tq = 0;
 
 	if (globals->opmode == OPMODE_SLAVE)
 		set_best_server(globals);
