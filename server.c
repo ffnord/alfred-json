@@ -29,6 +29,7 @@
 #include <sys/select.h>
 #include <sys/time.h>
 #include "alfred.h"
+#include "batadv_query.h"
 
 static int server_compare(void *d1, void *d2)
 {
@@ -168,6 +169,9 @@ int alfred_server(struct globals *globals)
 		fprintf(stderr, "Can't start server: interface missing\n");
 		return -1;
 	}
+
+	if (batadv_interface_check(globals->interface) < 0)
+		return -1;
 
 	if (netsock_open(globals))
 		return -1;

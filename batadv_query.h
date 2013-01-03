@@ -25,5 +25,6 @@
 
 struct ether_addr *translate_mac(char *mesh_iface, struct ether_addr *mac);
 uint8_t get_tq(char *mesh_iface, struct ether_addr *mac);
+int batadv_interface_check(char *mesh_iface);
 
 #endif

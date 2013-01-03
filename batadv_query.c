@@ -29,6 +29,43 @@
 #define DEBUG_TRANSTABLE_GLOBAL "transtable_global"
 #define DEBUG_ORIGINATORS "originators"
 
+int batadv_interface_check(char *mesh_iface)
+{
+	char *debugfs_mnt;
+	char full_path[MAX_PATH+1];
+	FILE *f;
+
+	debugfs_mnt = debugfs_mount(NULL);
+	if (!debugfs_mnt) {
+		fprintf(stderr, "Could not find debugfs path\n");
+		return -1;
+	}
+
+	debugfs_make_path(DEBUG_BATIF_PATH_FMT "/" DEBUG_TRANSTABLE_GLOBAL,
+			  mesh_iface, full_path, sizeof(full_path));
+	f = fopen(full_path, "r");
+	if (!f) {
+		fprintf(stderr,
+			"Could not find %s for interface %s. Make sure it is a valid batman-adv soft-interface\n",
+			DEBUG_TRANSTABLE_GLOBAL, mesh_iface);
+		return -1;
+	}
+	fclose(f);
+
+	debugfs_make_path(DEBUG_BATIF_PATH_FMT "/" DEBUG_ORIGINATORS,
+			  mesh_iface, full_path, sizeof(full_path));
+	f = fopen(full_path, "r");
+	if (!f) {
+		fprintf(stderr,
+			"Could not find %s for interface %s. Make sure it is a valid batman-adv soft-interface\n",
+			DEBUG_ORIGINATORS, mesh_iface);
+		return -1;
+	}
+	fclose(f);
+
+	return 0;
+}
+
 struct ether_addr *translate_mac(char *mesh_iface, struct ether_addr *mac)
 {
 	enum {
