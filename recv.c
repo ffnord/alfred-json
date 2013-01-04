@@ -126,12 +126,16 @@ int process_alfred_announce_master(struct globals *globals,
 	}
 
 	server->last_seen = time(NULL);
-	macaddr = translate_mac(globals->interface,
-				(struct ether_addr *)server->address);
-	if (macaddr)
-		server->tq = get_tq(globals->interface, macaddr);
-	else
-		server->tq = 0;
+	if (strcmp(globals->mesh_iface, "none") != 0) {
+		macaddr = translate_mac(globals->mesh_iface,
+					(struct ether_addr *)server->address);
+		if (macaddr)
+			server->tq = get_tq(globals->mesh_iface, macaddr);
+		else
+			server->tq = 0;
+	} else {
+		server->tq = 255;
+	}
 
 	if (globals->opmode == OPMODE_SLAVE)
 		set_best_server(globals);

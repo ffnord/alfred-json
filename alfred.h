@@ -96,6 +96,7 @@ struct globals {
 	uint8_t hwaddr[ETH_ALEN];
 	struct server *best_server;	/* NULL if we are a server ourselves */
 	char *interface;
+	char *mesh_iface;
 	enum opmode opmode;
 	enum clientmode clientmode;
 	int clientmode_arg;

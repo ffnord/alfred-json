@@ -170,7 +170,8 @@ int alfred_server(struct globals *globals)
 		return -1;
 	}
 
-	if (batadv_interface_check(globals->interface) < 0)
+	if (strcmp(globals->mesh_iface, "none") != 0 &&
+	    batadv_interface_check(globals->mesh_iface) < 0)
 		return -1;
 
 	if (netsock_open(globals))
