@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
 	globals = alfred_init(argc, argv);
 
 	if (!globals)
-		return 0;
+		return 1;
 
 	switch (globals->clientmode) {
 	case CLIENT_NONE:
