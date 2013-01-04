@@ -83,6 +83,8 @@ int netsock_open(struct globals *globals)
 	}
 
 	globals->mtu = ifr.ifr_mtu;
+	if (globals->mtu > MAX_PAYLOAD)
+		globals->mtu = MAX_PAYLOAD;
 
 	if (bind(sock, (struct sockaddr *)&sll, sizeof(sll)) < 0) {
 		fprintf(stderr, "can't bind\n");

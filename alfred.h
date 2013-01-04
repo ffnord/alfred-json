@@ -115,6 +115,9 @@ struct globals {
 
 #define ALFRED_HEADLEN		(sizeof(struct ethhdr) +\
 				 sizeof(struct alfred_packet))
+
+#define MAX_PAYLOAD 9000
+
 /* server.c */
 int alfred_server(struct globals *globals);
 int set_best_server(struct globals *globals);

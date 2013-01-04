@@ -168,7 +168,7 @@ int process_alfred_request(struct globals *globals,
 
 int recv_alfred_packet(struct globals *globals)
 {
-	uint8_t buf[9000];
+	uint8_t buf[MAX_PAYLOAD];
 	int length;
 	struct ethhdr *ethhdr;
 	struct alfred_packet *packet;

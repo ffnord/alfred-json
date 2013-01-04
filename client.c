@@ -32,7 +32,7 @@
 
 int alfred_client_request_data(struct globals *globals)
 {
-	unsigned char buf[9000], *pos;
+	unsigned char buf[MAX_PAYLOAD], *pos;
 	struct alfred_packet *packet;
 	struct alfred_data *data;
 	int ret, len, headlen, data_len, i;
@@ -100,7 +100,7 @@ int alfred_client_request_data(struct globals *globals)
 
 int alfred_client_set_data(struct globals *globals)
 {
-	unsigned char buf[9000];
+	unsigned char buf[MAX_PAYLOAD];
 	struct alfred_packet *packet;
 	struct alfred_data *data;
 	int ret, len;

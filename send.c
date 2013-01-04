@@ -52,7 +52,7 @@ int push_data(struct globals *globals, uint8_t *destination,
 	      enum data_source max_source_level, int type_filter)
 {
 	struct hash_it_t *hashit = NULL;
-	uint8_t buf[9000];
+	uint8_t buf[MAX_PAYLOAD];
 	struct alfred_packet *packet;
 	struct alfred_data *data;
 	uint16_t total_length = 0;

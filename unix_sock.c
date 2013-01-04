@@ -148,7 +148,7 @@ int unix_sock_req_data(struct globals *globals, struct alfred_packet *packet,
 	struct timeval tv, last_check, now;
 	fd_set fds;
 	int ret, len, type;
-	uint8_t buf[9000];
+	uint8_t buf[MAX_PAYLOAD];
 
 	len = ntohs(packet->length);
 
@@ -226,7 +226,7 @@ int unix_sock_read(struct globals *globals)
 	struct sockaddr_un sun_addr;
 	socklen_t sun_size = sizeof(sun_addr);
 	struct alfred_packet *packet;
-	uint8_t buf[9000];
+	uint8_t buf[MAX_PAYLOAD];
 	int length, headsize, ret = -1;
 
 	client_sock = accept(globals->unix_sock, (struct sockaddr *)&sun_addr,
