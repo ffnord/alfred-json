@@ -114,6 +114,9 @@ int alfred_client_set_data(struct globals *globals)
 	while (!feof(stdin)) {
 		ret = fread(&buf[len], 1, sizeof(buf) - len, stdin);
 		len += ret;
+
+		if (sizeof(buf) == len)
+			break;
 	}
 
 	packet->type = ALFRED_PUSH_DATA;
