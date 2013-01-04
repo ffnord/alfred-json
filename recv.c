@@ -50,7 +50,7 @@ int process_alfred_push_data(struct globals *globals, struct ethhdr *ethhdr,
 		data_len = ntohs(data->length);
 
 		/* check if enough data is available */
-		if (data_len + sizeof(*data) > len)
+		if ((int)(data_len + sizeof(*data)) > len)
 			break;
 
 		dataset = hash_find(globals->data_hash, data);

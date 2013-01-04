@@ -49,7 +49,7 @@ int announce_master(struct globals *globals)
 }
 
 int push_data(struct globals *globals, uint8_t *destination,
-	      int max_source_level, int type_filter)
+	      enum data_source max_source_level, int type_filter)
 {
 	struct hash_it_t *hashit = NULL;
 	uint8_t buf[9000];

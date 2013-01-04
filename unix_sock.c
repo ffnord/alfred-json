@@ -98,14 +98,14 @@ int unix_sock_add_data(struct globals *globals, struct alfred_packet *packet)
 
 	len = ntohs(packet->length);
 
-	if (len < sizeof(*data))
+	if (len < (int)sizeof(*data))
 		return -1;
 
 	data = (struct alfred_data *)(packet + 1);
 	data_len = ntohs(data->length);
 	memcpy(data->source, globals->hwaddr, sizeof(globals->hwaddr));
 
-	if (data_len + sizeof(*data) > len)
+	if ((int)(data_len + sizeof(*data)) > len)
 		return -1;
 
 	dataset = hash_find(globals->data_hash, data);
