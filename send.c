@@ -33,8 +33,6 @@
 #include <linux/filter.h>
 #include "alfred.h"
 
-static uint8_t bcast[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
 int announce_master(struct globals *globals)
 {
 	struct alfred_packet announcement;
@@ -43,12 +41,13 @@ int announce_master(struct globals *globals)
 	announcement.version = ALFRED_VERSION;
 	announcement.length = htons(0);
 
-	send_alfred_packet(globals, bcast, &announcement, sizeof(announcement));
+	send_alfred_packet(globals, &in6addr_localmcast, &announcement,
+			   sizeof(announcement));
 
 	return 0;
 }
 
-int push_data(struct globals *globals, uint8_t *destination,
+int push_data(struct globals *globals, struct in6_addr *destination,
 	      enum data_source max_source_level, int type_filter)
 {
 	struct hash_it_t *hashit = NULL;
@@ -73,7 +72,7 @@ int push_data(struct globals *globals, uint8_t *destination,
 		/* would the packet be too big? send so far aggregated data
 		 * first */
 		if (total_length + dataset->data.length + sizeof(*data) >
-		    globals->mtu - ALFRED_HEADLEN) {
+		    MAX_PAYLOAD - ALFRED_HEADLEN) {
 			packet->length = htons(total_length);
 			send_alfred_packet(globals, destination, packet,
 					   sizeof(*packet) + total_length);
@@ -107,7 +106,7 @@ int sync_data(struct globals *globals)
 	while (NULL != (hashit = hash_iterate(globals->server_hash, hashit))) {
 		struct server *server = hashit->bucket->data;
 
-		push_data(globals, server->address, SOURCE_FIRST_HAND,
+		push_data(globals, &server->address, SOURCE_FIRST_HAND,
 			  NO_FILTER);
 	}
 	return 0;
@@ -119,7 +118,7 @@ int push_local_data(struct globals *globals)
 	if (!globals->best_server)
 		return -1;
 
-	push_data(globals, globals->best_server->address, SOURCE_LOCAL,
+	push_data(globals, &globals->best_server->address, SOURCE_LOCAL,
 		  NO_FILTER);
 
 	return 0;

@@ -104,7 +104,7 @@ static int unix_sock_add_data(struct globals *globals,
 
 	data = (struct alfred_data *)(packet + 1);
 	data_len = ntohs(data->length);
-	memcpy(data->source, globals->hwaddr, sizeof(globals->hwaddr));
+	memcpy(data->source, &globals->hwaddr, sizeof(globals->hwaddr));
 
 	if ((int)(data_len + sizeof(*data)) > len)
 		return -1;
@@ -164,7 +164,7 @@ static int unix_sock_req_data(struct globals *globals,
 	if (globals->opmode == OPMODE_MASTER)
 		goto send_reply;
 
-	send_alfred_packet(globals, globals->best_server->address,
+	send_alfred_packet(globals, &globals->best_server->address,
 			   packet, sizeof(*packet) + len);
 
 	/* process incoming packets ... */

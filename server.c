@@ -35,19 +35,20 @@ static int server_compare(void *d1, void *d2)
 {
 	struct server *s1 = d1, *s2 = d2;
 	/* compare source and type */
-	return ((memcmp(s1->address, s2->address, sizeof(s1->address)) == 0) ?
-		1 : 0);
+	if (memcmp(&s1->hwaddr, &s2->hwaddr, sizeof(s1->hwaddr)) == 0)
+		return 1;
+	else
+		return 0;
 }
 
 static int server_choose(void *d1, int size)
 {
 	struct server *s1 = d1;
-	unsigned char *key = s1->address;
 	uint32_t hash = 0;
 	size_t i;
 
-	for (i = 0; i < sizeof(s1->address); i++) {
-		hash += key[i];
+	for (i = 0; i < sizeof(s1->hwaddr); i++) {
+		hash += s1->hwaddr.ether_addr_octet[i];
 		hash += (hash << 10);
 		hash ^= (hash >> 6);
 	}

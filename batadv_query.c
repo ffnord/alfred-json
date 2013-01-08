@@ -24,10 +24,64 @@
 #include <stdio.h>
 #include <netinet/ether.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #define DEBUG_BATIF_PATH_FMT "%s/batman_adv/%s"
 #define DEBUG_TRANSTABLE_GLOBAL "transtable_global"
 #define DEBUG_ORIGINATORS "originators"
+
+int mac_to_ipv6(const struct ether_addr *mac, struct in6_addr *addr)
+{
+	memset(addr, 0, sizeof(*addr));
+	addr->s6_addr[0] = 0xfe;
+	addr->s6_addr[1] = 0x80;
+
+	addr->s6_addr[8] = mac->ether_addr_octet[0] ^ 0x02;
+	addr->s6_addr[9] = mac->ether_addr_octet[1];
+	addr->s6_addr[10] = mac->ether_addr_octet[2];
+
+	addr->s6_addr[11] = 0xff;
+	addr->s6_addr[12] = 0xfe;
+
+	addr->s6_addr[13] = mac->ether_addr_octet[3];
+	addr->s6_addr[14] = mac->ether_addr_octet[4];
+	addr->s6_addr[15] = mac->ether_addr_octet[5];
+
+	return 0;
+}
+
+int is_ipv6_eui64(const struct in6_addr *addr)
+{
+	size_t i;
+
+	for (i = 2; i < 8; i++) {
+		if (addr->s6_addr[i] != 0x0)
+			return 0;
+	}
+
+	if (addr->s6_addr[0] != 0xfe ||
+	    addr->s6_addr[1] != 0x80 ||
+	    addr->s6_addr[11] != 0xff ||
+	    addr->s6_addr[12] != 0xfe)
+		return 0;
+
+	return 1;
+}
+
+int ipv6_to_mac(const struct in6_addr *addr, struct ether_addr *mac)
+{
+	if (!is_ipv6_eui64(addr))
+		return -EINVAL;
+
+	mac->ether_addr_octet[0] = addr->s6_addr[8] ^ 0x02;
+	mac->ether_addr_octet[1] = addr->s6_addr[9];
+	mac->ether_addr_octet[2] = addr->s6_addr[10];
+	mac->ether_addr_octet[3] = addr->s6_addr[13];
+	mac->ether_addr_octet[4] = addr->s6_addr[14];
+	mac->ether_addr_octet[5] = addr->s6_addr[15];
+
+	return 0;
+}
 
 int batadv_interface_check(char *mesh_iface)
 {
