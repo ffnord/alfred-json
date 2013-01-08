@@ -63,7 +63,7 @@ int alfred_client_request_data(struct globals *globals)
 		data_len = ntohs(data->length);
 
 		/* would it fit? it should! */
-		if (data_len > sizeof(*buf) - headlen)
+		if (data_len > sizeof(buf) - headlen)
 			break;
 
 		/* read the data */
