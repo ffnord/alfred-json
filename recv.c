@@ -34,8 +34,9 @@
 #include "alfred.h"
 #include "batadv_query.h"
 
-int process_alfred_push_data(struct globals *globals, struct ethhdr *ethhdr,
-			     struct alfred_packet *packet)
+static int process_alfred_push_data(struct globals *globals,
+				    struct ethhdr *ethhdr,
+				    struct alfred_packet *packet)
 {
 	int len, data_len;
 	struct alfred_data *data;
@@ -101,9 +102,9 @@ err:
 	return -1;
 }
 
-int process_alfred_announce_master(struct globals *globals,
-				   struct ethhdr *ethhdr,
-				   struct alfred_packet *packet)
+static int process_alfred_announce_master(struct globals *globals,
+					  struct ethhdr *ethhdr,
+					  struct alfred_packet *packet)
 {
 	struct server *server;
 	struct ether_addr *macaddr;
@@ -144,9 +145,9 @@ int process_alfred_announce_master(struct globals *globals,
 }
 
 
-int process_alfred_request(struct globals *globals,
-			   struct ethhdr *ethhdr,
-			   struct alfred_packet *packet)
+static int process_alfred_request(struct globals *globals,
+				  struct ethhdr *ethhdr,
+				  struct alfred_packet *packet)
 {
 	uint8_t type;
 	int len;

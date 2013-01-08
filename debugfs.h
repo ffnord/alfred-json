@@ -33,8 +33,6 @@
 # define STR(x) _STR(x)
 #endif
 
-extern const char *debugfs_find_mountpoint(void);
-extern int debugfs_valid_mountpoint(const char *debugfs);
 extern int debugfs_valid_entry(const char *path);
 extern char *debugfs_mount(const char *mountpoint);
 extern int debugfs_make_path(const char *fmt, char *mesh_iface,

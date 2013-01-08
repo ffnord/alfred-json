@@ -30,7 +30,7 @@
 #include <sys/time.h>
 #include "alfred.h"
 
-void alfred_usage(void)
+static void alfred_usage(void)
 {
 	printf("Usage: alfred [options]\n");
 	printf("client mode options:\n");
@@ -53,7 +53,7 @@ void alfred_usage(void)
 	printf("\n");
 }
 
-struct globals *alfred_init(int argc, char *argv[])
+static struct globals *alfred_init(int argc, char *argv[])
 {
 	int opt, opt_ind, i;
 	struct globals *globals;

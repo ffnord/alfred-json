@@ -35,6 +35,9 @@
 static int debugfs_premounted;
 static char debugfs_mountpoint[MAX_PATH+1];
 
+static const char *debugfs_find_mountpoint(void);
+static int debugfs_valid_mountpoint(const char *debugfs);
+
 static const char *debugfs_known_mountpoints[] = {
 	"/sys/kernel/debug/",
 	"/debug/",
@@ -63,7 +66,7 @@ int debugfs_make_path(const char *fmt, char *mesh_iface, char *buffer, int size)
 static int debugfs_found;
 
 /* find the path to the mounted debugfs */
-const char *debugfs_find_mountpoint(void)
+static const char *debugfs_find_mountpoint(void)
 {
 	const char **ptr;
 	char type[100];
@@ -110,7 +113,7 @@ const char *debugfs_find_mountpoint(void)
 
 /* verify that a mountpoint is actually a debugfs instance */
 
-int debugfs_valid_mountpoint(const char *debugfs)
+static int debugfs_valid_mountpoint(const char *debugfs)
 {
 	struct statfs st_fs;
 

@@ -90,7 +90,8 @@ int unix_sock_open_client(struct globals *globals, char *path)
 }
 
 
-int unix_sock_add_data(struct globals *globals, struct alfred_packet *packet)
+static int unix_sock_add_data(struct globals *globals,
+			      struct alfred_packet *packet)
 {
 	struct alfred_data *data;
 	struct dataset *dataset;
@@ -141,8 +142,8 @@ int unix_sock_add_data(struct globals *globals, struct alfred_packet *packet)
 }
 
 
-int unix_sock_req_data(struct globals *globals, struct alfred_packet *packet,
-		       int client_sock)
+static int unix_sock_req_data(struct globals *globals,
+			      struct alfred_packet *packet, int client_sock)
 {
 	struct hash_it_t *hashit = NULL;
 	struct timeval tv, last_check, now;
