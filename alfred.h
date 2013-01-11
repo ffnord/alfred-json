@@ -29,30 +29,8 @@
 #include <netinet/in.h>
 #include <time.h>
 #include "hash.h"
-#define __packed __attribute__ ((packed))
+#include "packet.h"
 
-struct alfred_data {
-	uint8_t source[ETH_ALEN];
-	uint8_t type;
-	uint8_t version;
-	uint16_t length;
-} __packed;
-
-struct alfred_packet {
-	uint8_t type;
-	uint8_t version;
-	uint16_t length;
-} __packed;
-
-enum alfred_packet_type {
-	ALFRED_PUSH_DATA = 0,
-	ALFRED_ANNOUNCE_MASTER = 1,
-	ALFRED_REQUEST = 2,
-};
-
-#define ALFRED_VERSION			0
-#define ALFRED_PORT			0x4242
-#define ALFRED_MAX_RESERVED_TYPE	64
 #define ALFRED_INTERVAL			10
 #define ALFRED_REQUEST_TIMEOUT		1
 #define ALFRED_SERVER_TIMEOUT		60
