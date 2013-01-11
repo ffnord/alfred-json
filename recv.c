@@ -29,18 +29,25 @@
 #include <sys/ioctl.h>
 #include <linux/if.h>
 #include <linux/if_packet.h>
-#include <linux/if_ether.h>
-#include <linux/filter.h>
+#include <arpa/inet.h>
 #include "alfred.h"
+#include "batadv_query.h"
 
-int process_alfred_push_data(struct globals *globals, struct ethhdr *ethhdr,
-			     struct alfred_packet *packet)
+static int process_alfred_push_data(struct globals *globals,
+				    struct in6_addr *source,
+				    struct alfred_packet *packet)
 {
 	int len, data_len;
 	struct alfred_data *data;
 	struct dataset *dataset;
 	uint8_t *pos;
-	
+	struct ether_addr mac;
+	int ret;
+
+	ret = ipv6_to_mac(source, &mac);
+	if (ret < 0)
+		goto err;
+
 	len = ntohs(packet->length);
 	pos = (uint8_t *)(packet + 1);
 
@@ -49,7 +56,7 @@ int process_alfred_push_data(struct globals *globals, struct ethhdr *ethhdr,
 		data_len = ntohs(data->length);
 
 		/* check if enough data is available */
-		if (data_len + sizeof(*data) > len)
+		if ((int)(data_len + sizeof(*data)) > len)
 			break;
 
 		dataset = hash_find(globals->data_hash, data);
@@ -87,7 +94,7 @@ int process_alfred_push_data(struct globals *globals, struct ethhdr *ethhdr,
 
 		/* if the sender is also the the source of the dataset, we
 		 * got a first hand dataset. */
-		if (memcmp(ethhdr->h_source, data->source, ETH_ALEN) == 0)
+		if (memcmp(&mac, data->source, ETH_ALEN) == 0)
 			dataset->data_source = SOURCE_FIRST_HAND;
 		else
 			dataset->data_source = SOURCE_SYNCED;
@@ -100,22 +107,30 @@ err:
 	return -1;
 }
 
-int process_alfred_announce_master(struct globals *globals,
-				   struct ethhdr *ethhdr,
-				   struct alfred_packet *packet)
+static int process_alfred_announce_master(struct globals *globals,
+					  struct in6_addr *source,
+					  struct alfred_packet *packet)
 {
 	struct server *server;
+	struct ether_addr *macaddr;
+	struct ether_addr mac;
+	int ret;
+
+	ret = ipv6_to_mac(source, &mac);
+	if (ret < 0)
+		return -1;
 
 	if (packet->version != ALFRED_VERSION)
 		return -1;
 
-	server = hash_find(globals->server_hash, ethhdr->h_source);
+	server = hash_find(globals->server_hash, &mac);
 	if (!server) {
 		server = malloc(sizeof(*server));
 		if (!server)
 			return -1;
 
-		memcpy(server->address, ethhdr->h_source, ETH_ALEN);
+		memcpy(&server->hwaddr, &mac, ETH_ALEN);
+		memcpy(&server->address, source, sizeof(*source));
 
 		if (hash_add(globals->server_hash, server)) {
 			free(server);
@@ -124,8 +139,16 @@ int process_alfred_announce_master(struct globals *globals,
 	}
 
 	server->last_seen = time(NULL);
-	server->tq = 255;
-	/* TODO: update TQ */
+	if (strcmp(globals->mesh_iface, "none") != 0) {
+		macaddr = translate_mac(globals->mesh_iface,
+					(struct ether_addr *)&server->hwaddr);
+		if (macaddr)
+			server->tq = get_tq(globals->mesh_iface, macaddr);
+		else
+			server->tq = 0;
+	} else {
+		server->tq = 255;
+	}
 
 	if (globals->opmode == OPMODE_SLAVE)
 		set_best_server(globals);
@@ -134,9 +157,9 @@ int process_alfred_announce_master(struct globals *globals,
 }
 
 
-int process_alfred_request(struct globals *globals,
-			   struct ethhdr *ethhdr,
-			   struct alfred_packet *packet)
+static int process_alfred_request(struct globals *globals,
+				  struct in6_addr *source,
+				  struct alfred_packet *packet)
 {
 	uint8_t type;
 	int len;
@@ -150,7 +173,7 @@ int process_alfred_request(struct globals *globals,
 		return -1;
 
 	type = *((uint8_t *)(packet + 1));
-	push_data(globals, ethhdr->h_source, SOURCE_SYNCED, type);
+	push_data(globals, source, SOURCE_SYNCED, type);
 
 	return 0;
 }
@@ -158,33 +181,34 @@ int process_alfred_request(struct globals *globals,
 
 int recv_alfred_packet(struct globals *globals)
 {
-	uint8_t buf[9000];
-	int length;
-	struct ethhdr *ethhdr;
+	uint8_t buf[MAX_PAYLOAD];
+	ssize_t length;
 	struct alfred_packet *packet;
-	int headsize;
+	struct sockaddr_in6 source;
+	socklen_t sourcelen;
 
-	length = read(globals->netsock, buf, sizeof(buf));
+	sourcelen = sizeof(source);
+	length = recvfrom(globals->netsock, buf, sizeof(buf), 0,
+			  (struct sockaddr *)&source, &sourcelen);
 	if (length <= 0) {
 		fprintf(stderr, "read from network socket failed: %s\n",
 			strerror(errno));
 		return -1;
 	}
 
-	/* drop too small packets */
-	headsize = sizeof(*ethhdr) + sizeof(*packet);
-	if (length < headsize)
+	packet = (struct alfred_packet *)buf;
+
+	/* drop packets not sent over link-local ipv6 */
+	if (!is_ipv6_eui64(&source.sin6_addr))
 		return -1;
 
-	ethhdr = (struct ethhdr *)buf;
-	packet = (struct alfred_packet *)(ethhdr + 1);
-
 	/* drop packets from ourselves */
-	if (memcmp(ethhdr->h_source, globals->hwaddr, ETH_ALEN) == 0)
+	if (0 == memcmp(&source.sin6_addr, &globals->address,
+			sizeof(source.sin6_addr)))
 		return -1;
 
 	/* drop truncated packets */
-	if (length - headsize < ((int)ntohs(packet->length)))
+	if (length < ((int)ntohs(packet->length)))
 		return -1;
 
 	/* drop incompatible packet */
@@ -193,13 +217,14 @@ int recv_alfred_packet(struct globals *globals)
 
 	switch (packet->type) {
 	case ALFRED_PUSH_DATA:
-		process_alfred_push_data(globals, ethhdr, packet);
+		process_alfred_push_data(globals, &source.sin6_addr, packet);
 		break;
 	case ALFRED_ANNOUNCE_MASTER:
-		process_alfred_announce_master(globals, ethhdr, packet);
+		process_alfred_announce_master(globals, &source.sin6_addr,
+					       packet);
 		break;
 	case ALFRED_REQUEST:
-		process_alfred_request(globals, ethhdr, packet);
+		process_alfred_request(globals, &source.sin6_addr, packet);
 		break;
 	default:
 		/* unknown packet type */
@@ -207,29 +232,4 @@ int recv_alfred_packet(struct globals *globals)
 	}
 
 	return 0;
-}
-
-int send_alfred_packet(struct globals *globals, uint8_t *dest, void *buf,
-		       int length)
-{
-	int ret;
-	struct ethhdr *ethhdr;
-	char *sendbuf;
-
-	sendbuf = malloc(sizeof(*ethhdr) + length);
-	if (!sendbuf)
-		return -1;
-
-	ethhdr = (struct ethhdr *)sendbuf;
-
-	memcpy(ethhdr->h_source, globals->hwaddr, ETH_ALEN);
-	memcpy(ethhdr->h_dest, dest, ETH_ALEN);
-	ethhdr->h_proto = htons(ETH_P_ALFRED);
-	memcpy(sendbuf + sizeof(*ethhdr), buf, length);
-
-	ret = write(globals->netsock, sendbuf, sizeof(*ethhdr) + length);
-
-	free(sendbuf);
-
-	return (ret == length);
 }

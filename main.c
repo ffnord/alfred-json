@@ -30,7 +30,7 @@
 #include <sys/time.h>
 #include "alfred.h"
 
-void alfred_usage(void)
+static void alfred_usage(void)
 {
 	printf("Usage: alfred [options]\n");
 	printf("client mode options:\n");
@@ -42,6 +42,8 @@ void alfred_usage(void)
 	printf("\n");
 	printf("server mode options:\n");
 	printf("  -i, --interface             specify the interface to listen on\n");
+	printf("  -b                          specify the batman-adv interface configured on the system (default: bat0)\n");
+	printf("                              use 'none' to disable the batman-adv based best server selection\n");
 	printf("  -m, --master                start up the daemon in master mode, which\n");
 	printf("                              accepts data from slaves and synces it with\n");
 	printf("                              other masters\n");
@@ -51,7 +53,7 @@ void alfred_usage(void)
 	printf("\n");
 }
 
-struct globals *alfred_init(int argc, char *argv[])
+static struct globals *alfred_init(int argc, char *argv[])
 {
 	int opt, opt_ind, i;
 	struct globals *globals;
@@ -77,8 +79,9 @@ struct globals *alfred_init(int argc, char *argv[])
 	globals->interface = NULL;
 	globals->best_server = NULL;
 	globals->clientmode_version = 0;
+	globals->mesh_iface = "bat0";
 
-	while ((opt = getopt_long(argc, argv, "ms:r:hi:vV:", long_options,
+	while ((opt = getopt_long(argc, argv, "ms:r:hi:b:vV:", long_options,
 				  &opt_ind)) != -1) {
 		switch (opt) {
 		case 'r':
@@ -105,6 +108,9 @@ struct globals *alfred_init(int argc, char *argv[])
 			break;
 		case 'i':
 			globals->interface = strdup(optarg);
+			break;
+		case 'b':
+			globals->mesh_iface = strdup(optarg);
 			break;
 		case 'V':
 			i = atoi(optarg);
@@ -134,7 +140,7 @@ int main(int argc, char *argv[])
 	globals = alfred_init(argc, argv);
 
 	if (!globals)
-		return 0;
+		return 1;
 
 	switch (globals->clientmode) {
 	case CLIENT_NONE:

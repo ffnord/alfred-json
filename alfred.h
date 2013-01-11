@@ -25,32 +25,12 @@
 
 #include <stdint.h>
 #include <linux/if_ether.h>
+#include <netinet/ether.h>
+#include <netinet/in.h>
 #include <time.h>
 #include "hash.h"
-#define __packed __attribute__ ((packed))
+#include "packet.h"
 
-struct alfred_data {
-	uint8_t source[ETH_ALEN];
-	uint8_t type;
-	uint8_t version;
-	uint16_t length;
-} __packed;
-
-struct alfred_packet {
-	uint8_t type;
-	uint8_t version;
-	uint16_t length;
-} __packed;
-
-enum alfred_packet_type {
-	ALFRED_PUSH_DATA = 0,
-	ALFRED_ANNOUNCE_MASTER = 1,
-	ALFRED_REQUEST = 2,
-};
-
-#define ALFRED_VERSION			0
-#define ETH_P_ALFRED			0x4242
-#define ALFRED_MAX_RESERVED_TYPE	64
 #define ALFRED_INTERVAL			10
 #define ALFRED_REQUEST_TIMEOUT		1
 #define ALFRED_SERVER_TIMEOUT		60
@@ -76,7 +56,8 @@ struct dataset {
 };
 
 struct server {
-	uint8_t address[ETH_ALEN];
+	struct ether_addr hwaddr;
+	struct in6_addr address;
 	time_t last_seen;
 	uint8_t tq;
 };
@@ -93,9 +74,12 @@ enum clientmode {
 };
 
 struct globals {
-	uint8_t hwaddr[ETH_ALEN];
+	struct ether_addr hwaddr;
+	struct in6_addr address;
+	uint32_t scope_id;
 	struct server *best_server;	/* NULL if we are a server ourselves */
 	char *interface;
+	char *mesh_iface;
 	enum opmode opmode;
 	enum clientmode clientmode;
 	int clientmode_arg;
@@ -103,7 +87,6 @@ struct globals {
 
 	int netsock;
 	int unix_sock;
-	int mtu;
 
 	struct hashtable_t *server_hash;
 	struct hashtable_t *data_hash;
@@ -112,8 +95,12 @@ struct globals {
 #define debugMalloc(size, num)	malloc(size)
 #define debugFree(ptr, num)	free(ptr)
 
-#define ALFRED_HEADLEN		(sizeof(struct ethhdr) +\
-				 sizeof(struct alfred_packet))
+#define ALFRED_HEADLEN		sizeof(struct alfred_packet)
+
+#define MAX_PAYLOAD ((1 << 16) - 1)
+
+extern const struct in6_addr in6addr_localmcast;
+
 /* server.c */
 int alfred_server(struct globals *globals);
 int set_best_server(struct globals *globals);
@@ -123,13 +110,13 @@ int alfred_client_set_data(struct globals *globals);
 /* recv.c */
 int recv_alfred_packet(struct globals *globals);
 /* send.c */
-int push_data(struct globals *globals, uint8_t *destination,
-	      int max_source_level, int type_filter);
+int push_data(struct globals *globals, struct in6_addr *destination,
+	      enum data_source max_source_level, int type_filter);
 int announce_master(struct globals *globals);
 int push_local_data(struct globals *globals);
 int sync_data(struct globals *globals);
-int send_alfred_packet(struct globals *globals, uint8_t *dest, void *buf,
-		       int length);
+int send_alfred_packet(struct globals *globals, const struct in6_addr *dest,
+		       void *buf, int length);
 /* unix_sock.c */
 int unix_sock_read(struct globals *globals);
 int unix_sock_open_daemon(struct globals *globals, char *path);

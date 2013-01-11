@@ -90,7 +90,8 @@ int unix_sock_open_client(struct globals *globals, char *path)
 }
 
 
-int unix_sock_add_data(struct globals *globals, struct alfred_packet *packet)
+static int unix_sock_add_data(struct globals *globals,
+			      struct alfred_packet *packet)
 {
 	struct alfred_data *data;
 	struct dataset *dataset;
@@ -98,14 +99,14 @@ int unix_sock_add_data(struct globals *globals, struct alfred_packet *packet)
 
 	len = ntohs(packet->length);
 
-	if (len < sizeof(*data))
+	if (len < (int)sizeof(*data))
 		return -1;
 
 	data = (struct alfred_data *)(packet + 1);
 	data_len = ntohs(data->length);
-	memcpy(data->source, globals->hwaddr, sizeof(globals->hwaddr));
+	memcpy(data->source, &globals->hwaddr, sizeof(globals->hwaddr));
 
-	if (data_len + sizeof(*data) > len)
+	if ((int)(data_len + sizeof(*data)) > len)
 		return -1;
 
 	dataset = hash_find(globals->data_hash, data);
@@ -141,14 +142,14 @@ int unix_sock_add_data(struct globals *globals, struct alfred_packet *packet)
 }
 
 
-int unix_sock_req_data(struct globals *globals, struct alfred_packet *packet,
-		       int client_sock)
+static int unix_sock_req_data(struct globals *globals,
+			      struct alfred_packet *packet, int client_sock)
 {
 	struct hash_it_t *hashit = NULL;
 	struct timeval tv, last_check, now;
 	fd_set fds;
 	int ret, len, type;
-	uint8_t buf[9000];
+	uint8_t buf[MAX_PAYLOAD];
 
 	len = ntohs(packet->length);
 
@@ -163,7 +164,7 @@ int unix_sock_req_data(struct globals *globals, struct alfred_packet *packet,
 	if (globals->opmode == OPMODE_MASTER)
 		goto send_reply;
 
-	send_alfred_packet(globals, globals->best_server->address,
+	send_alfred_packet(globals, &globals->best_server->address,
 			   packet, sizeof(*packet) + len);
 
 	/* process incoming packets ... */
@@ -226,7 +227,7 @@ int unix_sock_read(struct globals *globals)
 	struct sockaddr_un sun_addr;
 	socklen_t sun_size = sizeof(sun_addr);
 	struct alfred_packet *packet;
-	uint8_t buf[9000];
+	uint8_t buf[MAX_PAYLOAD];
 	int length, headsize, ret = -1;
 
 	client_sock = accept(globals->unix_sock, (struct sockaddr *)&sun_addr,

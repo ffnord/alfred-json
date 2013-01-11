@@ -28,11 +28,12 @@
 #include <arpa/inet.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <ctype.h>
 #include "alfred.h"
 
 int alfred_client_request_data(struct globals *globals)
 {
-	unsigned char buf[9000], *pos;
+	unsigned char buf[MAX_PAYLOAD], *pos;
 	struct alfred_packet *packet;
 	struct alfred_data *data;
 	int ret, len, headlen, data_len, i;
@@ -63,7 +64,7 @@ int alfred_client_request_data(struct globals *globals)
 		data_len = ntohs(data->length);
 
 		/* would it fit? it should! */
-		if (data_len > sizeof(*buf) - headlen)
+		if (data_len > (int)(sizeof(buf) - headlen))
 			break;
 
 		/* read the data */
@@ -84,7 +85,7 @@ int alfred_client_request_data(struct globals *globals)
 				printf("\\\"");
 			else if (pos[i] == '\\')
 				printf("\\\\");
-			else if (pos[i] < 0x20 || pos[i] >= 0x80)
+			else if (!isprint(pos[i]))
 				printf("\\x%02x", pos[i]);
 			else
 				printf("%c", pos[i]);
@@ -100,7 +101,7 @@ int alfred_client_request_data(struct globals *globals)
 
 int alfred_client_set_data(struct globals *globals)
 {
-	unsigned char buf[9000];
+	unsigned char buf[MAX_PAYLOAD];
 	struct alfred_packet *packet;
 	struct alfred_data *data;
 	int ret, len;
@@ -114,6 +115,9 @@ int alfred_client_set_data(struct globals *globals)
 	while (!feof(stdin)) {
 		ret = fread(&buf[len], 1, sizeof(buf) - len, stdin);
 		len += ret;
+
+		if (sizeof(buf) == len)
+			break;
 	}
 
 	packet->type = ALFRED_PUSH_DATA;
