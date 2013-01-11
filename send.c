@@ -123,3 +123,22 @@ int push_local_data(struct globals *globals)
 
 	return 0;
 }
+
+int send_alfred_packet(struct globals *globals, const struct in6_addr *dest,
+		       void *buf, int length)
+{
+	int ret;
+	struct sockaddr_in6 dest_addr;
+
+	memset(&dest_addr, 0, sizeof(dest_addr));
+	dest_addr.sin6_family = AF_INET6;
+	dest_addr.sin6_port = htons(ALFRED_PORT);
+	dest_addr.sin6_scope_id = globals->scope_id;
+	memcpy(&dest_addr.sin6_addr, dest, sizeof(*dest));
+
+	ret = sendto(globals->netsock, buf, length, 0,
+		     (struct sockaddr *)&dest_addr,
+		     sizeof(struct sockaddr_in6));
+
+	return (ret == length);
+}
