@@ -124,7 +124,9 @@ int alfred_client_set_data(struct globals *globals)
 
 	push->header.type = ALFRED_PUSH_DATA;
 	push->header.version = ALFRED_VERSION;
-	push->header.length = htons(len - sizeof(*push));
+	push->header.length = htons(len - sizeof(push->header));
+	push->tx.id = get_random_id();
+	push->tx.seqno = htons(0);
 
 	/* we leave data->source "empty" */
 	memset(data->source, 0, sizeof(data->source));

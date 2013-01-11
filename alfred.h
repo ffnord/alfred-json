@@ -126,3 +126,5 @@ int netsock_close(int sock);
 /* util.c */
 int time_diff(struct timeval *tv1, struct timeval *tv2,
 	      struct timeval *tvdiff);
+void time_random_seed(void);
+uint16_t get_random_id(void);

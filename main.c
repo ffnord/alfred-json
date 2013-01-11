@@ -81,6 +81,8 @@ static struct globals *alfred_init(int argc, char *argv[])
 	globals->clientmode_version = 0;
 	globals->mesh_iface = "bat0";
 
+	time_random_seed();
+
 	while ((opt = getopt_long(argc, argv, "ms:r:hi:b:vV:", long_options,
 				  &opt_ind)) != -1) {
 		switch (opt) {

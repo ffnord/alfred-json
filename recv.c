@@ -49,6 +49,7 @@ static int process_alfred_push_data(struct globals *globals,
 		goto err;
 
 	len = ntohs(push->header.length);
+	len -= sizeof(*push) - sizeof(push->header);
 	pos = (uint8_t *)push->data;
 
 	while (len > (int)sizeof(*data)) {

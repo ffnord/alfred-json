@@ -55,10 +55,13 @@ int push_data(struct globals *globals, struct in6_addr *destination,
 	struct alfred_push_data_v0 *push;
 	struct alfred_data *data;
 	uint16_t total_length = 0;
+	size_t tlv_length;
+	uint16_t seqno = 0;
 
 	push = (struct alfred_push_data_v0 *)buf;
 	push->header.type = ALFRED_PUSH_DATA;
 	push->header.version = ALFRED_VERSION;
+	push->tx.id = get_random_id();
 
 	while (NULL != (hashit = hash_iterate(globals->data_hash, hashit))) {
 		struct dataset *dataset = hashit->bucket->data;
@@ -74,7 +77,10 @@ int push_data(struct globals *globals, struct in6_addr *destination,
 		 * first */
 		if (total_length + dataset->data.header.length + sizeof(*data) >
 		    MAX_PAYLOAD - sizeof(*push)) {
-			push->header.length = htons(total_length);
+			tlv_length = total_length;
+			tlv_length += sizeof(*push) - sizeof(push->header);
+			push->header.length = htons(tlv_length);
+			push->tx.seqno = htons(seqno++);
 			send_alfred_packet(globals, destination, push,
 					   sizeof(*push) + total_length);
 			total_length = 0;
@@ -90,7 +96,10 @@ int push_data(struct globals *globals, struct in6_addr *destination,
 	}
 	/* send the final packet */
 	if (total_length) {
-		push->header.length = htons(total_length);
+		tlv_length = total_length;
+		tlv_length += sizeof(*push) - sizeof(push->header);
+		push->header.length = htons(tlv_length);
+		push->tx.seqno = htons(seqno++);
 		send_alfred_packet(globals, destination, push,
 				   sizeof(*push) + total_length);
 	}

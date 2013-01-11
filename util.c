@@ -20,6 +20,9 @@
  */
 
 #include <sys/time.h>
+#include <time.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 int time_diff(struct timeval *tv1, struct timeval *tv2,
 	      struct timeval *tvdiff) {
@@ -32,4 +35,26 @@ int time_diff(struct timeval *tv1, struct timeval *tv2,
 	}
 
 	return (tvdiff->tv_sec >= 0);
+}
+
+void time_random_seed(void)
+{
+	struct timespec now;
+	uint8_t *c = (uint8_t *)&now;
+	size_t i;
+	unsigned int s = 0;
+
+	clock_gettime(CLOCK_REALTIME, &now);
+
+	for (i = 0; i < sizeof(now); i++) {
+		s *= 127u;
+		s += c[i];
+	}
+
+	srand(s);
+}
+
+uint16_t get_random_id(void)
+{
+	return random();
 }

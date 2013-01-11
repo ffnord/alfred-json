@@ -99,7 +99,13 @@ static int unix_sock_add_data(struct globals *globals,
 
 	len = ntohs(push->header.length);
 
-	if (len < (int)sizeof(*data))
+	if (len < (int)(sizeof(*push) + sizeof(push->header)))
+		return -1;
+
+	/* subtract rest of push header */
+	len -= sizeof(*push) - sizeof(push->header);
+
+	if (len < (int)(sizeof(*data)))
 		return -1;
 
 	data = push->data;
@@ -151,6 +157,7 @@ static int unix_sock_req_data(struct globals *globals,
 	int ret, len;
 	uint8_t buf[MAX_PAYLOAD];
 	struct alfred_push_data_v0 *push;
+	uint16_t seqno = 0;
 
 	len = ntohs(request->header.length);
 
@@ -199,6 +206,7 @@ send_reply:
 	push = (struct alfred_push_data_v0 *)buf;
 	push->header.type = ALFRED_PUSH_DATA;
 	push->header.version = ALFRED_VERSION;
+	push->tx.id = get_random_id();
 
 	while (NULL != (hashit = hash_iterate(globals->data_hash, hashit))) {
 		struct dataset *dataset = hashit->bucket->data;
@@ -214,6 +222,7 @@ send_reply:
 
 		len = dataset->data.header.length + sizeof(*data);
 		push->header.length = htons(len);
+		push->tx.seqno = htons(seqno++);
 
 		write(client_sock, buf, sizeof(*push) + len);
 	}

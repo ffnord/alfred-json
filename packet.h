@@ -52,6 +52,16 @@ struct alfred_data {
 } __packed;
 
 /**
+ * struct alfred_transaction_mgmt - Transaction Mgmt block for multiple packets
+ * @id: random identificator used for this transaction
+ * @seqno: Number of packet inside a transaction
+ */
+struct alfred_transaction_mgmt {
+	uint16_t id;
+	uint16_t seqno;
+} __packed;
+
+/**
  * enum alfred_packet_type - Types of packet stored in the main alfred_tlv
  * @ALFRED_PUSH_DATA: Packet is an alfred_push_data_v*
  * @ALFRED_ANNOUNCE_MASTER: Packet is an alfred_announce_master_v*
@@ -68,6 +78,7 @@ enum alfred_packet_type {
 /**
  * struct alfred_push_data_v0 - Packet to push data blocks to another
  * @header: TLV header describing the complete packet
+ * @tx: Transaction identificator and sequence number of packet
  * @data: multiple "alfred_data" blocks of arbitrary size (accumulated size
  *  stored in "header.length")
  *
@@ -75,6 +86,7 @@ enum alfred_packet_type {
  */
 struct alfred_push_data_v0 {
 	struct alfred_tlv header;
+	struct alfred_transaction_mgmt tx;
 	/* flexible data block */
 	__extension__  struct alfred_data data[0];
 } __packed;
