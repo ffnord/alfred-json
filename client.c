@@ -47,8 +47,10 @@ int alfred_client_request_data(struct globals *globals)
 
 	request->header.type = ALFRED_REQUEST;
 	request->header.version = ALFRED_VERSION;
-	request->header.length = htons(1);
+	request->header.length = sizeof(*request) - sizeof(request->header);
+	request->header.length = htons(request->header.length);
 	request->requested_type = globals->clientmode_arg;
+	request->tx_id = get_random_id();
 
 	ret = write(globals->unix_sock, buf, len);
 	if (ret != len)

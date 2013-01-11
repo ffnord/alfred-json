@@ -48,7 +48,8 @@ int announce_master(struct globals *globals)
 }
 
 int push_data(struct globals *globals, struct in6_addr *destination,
-	      enum data_source max_source_level, int type_filter)
+	      enum data_source max_source_level, int type_filter,
+	      uint16_t tx_id)
 {
 	struct hash_it_t *hashit = NULL;
 	uint8_t buf[MAX_PAYLOAD];
@@ -61,7 +62,7 @@ int push_data(struct globals *globals, struct in6_addr *destination,
 	push = (struct alfred_push_data_v0 *)buf;
 	push->header.type = ALFRED_PUSH_DATA;
 	push->header.version = ALFRED_VERSION;
-	push->tx.id = get_random_id();
+	push->tx.id = tx_id;
 
 	while (NULL != (hashit = hash_iterate(globals->data_hash, hashit))) {
 		struct dataset *dataset = hashit->bucket->data;
@@ -117,7 +118,7 @@ int sync_data(struct globals *globals)
 		struct server *server = hashit->bucket->data;
 
 		push_data(globals, &server->address, SOURCE_FIRST_HAND,
-			  NO_FILTER);
+			  NO_FILTER, get_random_id());
 	}
 	return 0;
 }
@@ -129,7 +130,7 @@ int push_local_data(struct globals *globals)
 		return -1;
 
 	push_data(globals, &globals->best_server->address, SOURCE_LOCAL,
-		  NO_FILTER);
+		  NO_FILTER, get_random_id());
 
 	return 0;
 }

@@ -106,12 +106,14 @@ struct alfred_announce_master_v0 {
  * struct alfred_request_v0 - Request for a specific type
  * @header: TLV header describing the complete packet
  * @requested_type: data type which is requested
+ * @tx_id: random identificator used for this transaction
  *
  * Sent as unicast to the node storing it
  */
 struct alfred_request_v0 {
 	struct alfred_tlv header;
 	uint8_t requested_type;
+	uint16_t tx_id;
 } __packed;
 
 #define ALFRED_VERSION			0

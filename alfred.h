@@ -107,7 +107,8 @@ int alfred_client_set_data(struct globals *globals);
 int recv_alfred_packet(struct globals *globals);
 /* send.c */
 int push_data(struct globals *globals, struct in6_addr *destination,
-	      enum data_source max_source_level, int type_filter);
+	      enum data_source max_source_level, int type_filter,
+	      uint16_t tx_id);
 int announce_master(struct globals *globals);
 int push_local_data(struct globals *globals);
 int sync_data(struct globals *globals);

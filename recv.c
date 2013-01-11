@@ -179,7 +179,8 @@ static int process_alfred_request(struct globals *globals,
 	if (len != (sizeof(*request) - sizeof(request->header)))
 		return -1;
 
-	push_data(globals, source, SOURCE_SYNCED, request->requested_type);
+	push_data(globals, source, SOURCE_SYNCED, request->requested_type,
+		  request->tx_id);
 
 	return 0;
 }
