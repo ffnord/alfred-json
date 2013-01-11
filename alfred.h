@@ -44,8 +44,6 @@ enum data_source {
 	SOURCE_SYNCED = 2,
 };
 
-struct alfred_data;
-
 struct dataset {
 	struct alfred_data data;
 	unsigned char *buf;
@@ -94,8 +92,6 @@ struct globals {
 
 #define debugMalloc(size, num)	malloc(size)
 #define debugFree(ptr, num)	free(ptr)
-
-#define ALFRED_HEADLEN		sizeof(struct alfred_packet)
 
 #define MAX_PAYLOAD ((1 << 16) - 1)
 

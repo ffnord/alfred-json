@@ -35,7 +35,7 @@
 
 static int process_alfred_push_data(struct globals *globals,
 				    struct in6_addr *source,
-				    struct alfred_packet *packet)
+				    struct alfred_push_data_v0 *push)
 {
 	int len, data_len;
 	struct alfred_data *data;
@@ -48,12 +48,12 @@ static int process_alfred_push_data(struct globals *globals,
 	if (ret < 0)
 		goto err;
 
-	len = ntohs(packet->length);
-	pos = (uint8_t *)(packet + 1);
+	len = ntohs(push->header.length);
+	pos = (uint8_t *)push->data;
 
 	while (len > (int)sizeof(*data)) {
 		data = (struct alfred_data *)pos;
-		data_len = ntohs(data->length);
+		data_len = ntohs(data->header.length);
 
 		/* check if enough data is available */
 		if ((int)(data_len + sizeof(*data)) > len)
@@ -89,8 +89,8 @@ static int process_alfred_push_data(struct globals *globals,
 		if (!dataset->buf)
 			goto err;
 
-		dataset->data.length = data_len;
-		memcpy(dataset->buf, (data + 1), data_len);
+		dataset->data.header.length = data_len;
+		memcpy(dataset->buf, data->data, data_len);
 
 		/* if the sender is also the the source of the dataset, we
 		 * got a first hand dataset. */
@@ -107,20 +107,27 @@ err:
 	return -1;
 }
 
-static int process_alfred_announce_master(struct globals *globals,
-					  struct in6_addr *source,
-					  struct alfred_packet *packet)
+static int
+process_alfred_announce_master(struct globals *globals,
+			       struct in6_addr *source,
+			       struct alfred_announce_master_v0 *announce)
 {
 	struct server *server;
 	struct ether_addr *macaddr;
 	struct ether_addr mac;
 	int ret;
+	int len;
+
+	len = ntohs(announce->header.length);
 
 	ret = ipv6_to_mac(source, &mac);
 	if (ret < 0)
 		return -1;
 
-	if (packet->version != ALFRED_VERSION)
+	if (announce->header.version != ALFRED_VERSION)
+		return -1;
+
+	if (len != (sizeof(*announce) - sizeof(announce->header)))
 		return -1;
 
 	server = hash_find(globals->server_hash, &mac);
@@ -159,21 +166,19 @@ static int process_alfred_announce_master(struct globals *globals,
 
 static int process_alfred_request(struct globals *globals,
 				  struct in6_addr *source,
-				  struct alfred_packet *packet)
+				  struct alfred_request_v0 *request)
 {
-	uint8_t type;
 	int len;
 
-	len = ntohs(packet->length);
+	len = ntohs(request->header.length);
 
-	if (packet->version != ALFRED_VERSION)
+	if (request->header.version != ALFRED_VERSION)
 		return -1;
 
-	if (len != 1)
+	if (len != (sizeof(*request) - sizeof(request->header)))
 		return -1;
 
-	type = *((uint8_t *)(packet + 1));
-	push_data(globals, source, SOURCE_SYNCED, type);
+	push_data(globals, source, SOURCE_SYNCED, request->requested_type);
 
 	return 0;
 }
@@ -183,7 +188,7 @@ int recv_alfred_packet(struct globals *globals)
 {
 	uint8_t buf[MAX_PAYLOAD];
 	ssize_t length;
-	struct alfred_packet *packet;
+	struct alfred_tlv *packet;
 	struct sockaddr_in6 source;
 	socklen_t sourcelen;
 
@@ -196,7 +201,7 @@ int recv_alfred_packet(struct globals *globals)
 		return -1;
 	}
 
-	packet = (struct alfred_packet *)buf;
+	packet = (struct alfred_tlv *)buf;
 
 	/* drop packets not sent over link-local ipv6 */
 	if (!is_ipv6_eui64(&source.sin6_addr))
@@ -217,14 +222,16 @@ int recv_alfred_packet(struct globals *globals)
 
 	switch (packet->type) {
 	case ALFRED_PUSH_DATA:
-		process_alfred_push_data(globals, &source.sin6_addr, packet);
+		process_alfred_push_data(globals, &source.sin6_addr,
+					 (struct alfred_push_data_v0 *)packet);
 		break;
 	case ALFRED_ANNOUNCE_MASTER:
 		process_alfred_announce_master(globals, &source.sin6_addr,
-					       packet);
+					       (struct alfred_announce_master_v0 *)packet);
 		break;
 	case ALFRED_REQUEST:
-		process_alfred_request(globals, &source.sin6_addr, packet);
+		process_alfred_request(globals, &source.sin6_addr,
+				       (struct alfred_request_v0 *)packet);
 		break;
 	default:
 		/* unknown packet type */

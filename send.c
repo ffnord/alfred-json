@@ -35,11 +35,11 @@
 
 int announce_master(struct globals *globals)
 {
-	struct alfred_packet announcement;
+	struct alfred_announce_master_v0 announcement;
 
-	announcement.type = ALFRED_ANNOUNCE_MASTER;
-	announcement.version = ALFRED_VERSION;
-	announcement.length = htons(0);
+	announcement.header.type = ALFRED_ANNOUNCE_MASTER;
+	announcement.header.version = ALFRED_VERSION;
+	announcement.header.length = htons(0);
 
 	send_alfred_packet(globals, &in6addr_localmcast, &announcement,
 			   sizeof(announcement));
@@ -52,13 +52,13 @@ int push_data(struct globals *globals, struct in6_addr *destination,
 {
 	struct hash_it_t *hashit = NULL;
 	uint8_t buf[MAX_PAYLOAD];
-	struct alfred_packet *packet;
+	struct alfred_push_data_v0 *push;
 	struct alfred_data *data;
 	uint16_t total_length = 0;
 
-	packet = (struct alfred_packet *)buf;
-	packet->type = ALFRED_PUSH_DATA;
-	packet->version = ALFRED_VERSION;
+	push = (struct alfred_push_data_v0 *)buf;
+	push->header.type = ALFRED_PUSH_DATA;
+	push->header.version = ALFRED_VERSION;
 
 	while (NULL != (hashit = hash_iterate(globals->data_hash, hashit))) {
 		struct dataset *dataset = hashit->bucket->data;
@@ -66,32 +66,33 @@ int push_data(struct globals *globals, struct in6_addr *destination,
 		if (dataset->data_source > max_source_level)
 			continue;
 
-		if (type_filter >= 0 && dataset->data.type != type_filter)
+		if (type_filter >= 0 &&
+		    dataset->data.header.type != type_filter)
 			continue;
 
 		/* would the packet be too big? send so far aggregated data
 		 * first */
-		if (total_length + dataset->data.length + sizeof(*data) >
-		    MAX_PAYLOAD - ALFRED_HEADLEN) {
-			packet->length = htons(total_length);
-			send_alfred_packet(globals, destination, packet,
-					   sizeof(*packet) + total_length);
+		if (total_length + dataset->data.header.length + sizeof(*data) >
+		    MAX_PAYLOAD - sizeof(*push)) {
+			push->header.length = htons(total_length);
+			send_alfred_packet(globals, destination, push,
+					   sizeof(*push) + total_length);
 			total_length = 0;
 		}
 
 		data = (struct alfred_data *)
-		       (buf + sizeof(*packet) + total_length);
+		       (buf + sizeof(*push) + total_length);
 		memcpy(data, &dataset->data, sizeof(*data));
-		data->length = htons(data->length);
-		memcpy((data + 1), dataset->buf, dataset->data.length);
+		data->header.length = htons(data->header.length);
+		memcpy(data->data, dataset->buf, dataset->data.header.length);
 
-		total_length += dataset->data.length + sizeof(*data);
+		total_length += dataset->data.header.length + sizeof(*data);
 	}
 	/* send the final packet */
 	if (total_length) {
-		packet->length = htons(total_length);
-		send_alfred_packet(globals, destination, packet,
-				   sizeof(*packet) + total_length);
+		push->header.length = htons(total_length);
+		send_alfred_packet(globals, destination, push,
+				   sizeof(*push) + total_length);
 	}
 
 	return 0;
