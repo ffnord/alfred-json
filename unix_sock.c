@@ -130,7 +130,7 @@ static int unix_sock_add_data(struct globals *globals,
 		}
 	}
 	dataset->data_source = SOURCE_LOCAL;
-	dataset->last_seen = time(NULL);
+	clock_gettime(CLOCK_MONOTONIC, &dataset->last_seen);
 
 	/* free old buffer */
 	free(dataset->buf);
@@ -152,7 +152,7 @@ static int unix_sock_req_data(struct globals *globals,
 			      int client_sock)
 {
 	struct hash_it_t *hashit = NULL;
-	struct timeval tv, last_check, now;
+	struct timespec tv, last_check, now;
 	fd_set fds;
 	int ret, len;
 	uint8_t buf[MAX_PAYLOAD];
@@ -177,17 +177,18 @@ static int unix_sock_req_data(struct globals *globals,
 
 	/* process incoming packets ... */
 	FD_ZERO(&fds);
-	gettimeofday(&last_check, NULL);
+	clock_gettime(CLOCK_MONOTONIC, &last_check);
 
 	while (1) {
-		gettimeofday(&now, NULL);
+		clock_gettime(CLOCK_MONOTONIC, &now);
 		now.tv_sec -= ALFRED_REQUEST_TIMEOUT;
 		if (!time_diff(&last_check, &now, &tv))
 			break;
 
 		FD_SET(globals->netsock, &fds);
 
-		ret = select(globals->netsock + 1, &fds, NULL, NULL, &tv);
+		ret = pselect(globals->netsock + 1, &fds, NULL, NULL, &tv,
+			      NULL);
 
 		if (ret == -1) {
 			fprintf(stderr, "select failed ...: %s\n",

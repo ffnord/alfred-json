@@ -120,14 +120,15 @@ int set_best_server(struct globals *globals)
 static int purge_data(struct globals *globals)
 {
 	struct hash_it_t *hashit = NULL;
-	time_t now;
+	struct timespec now, diff;
 
-	now = time(NULL);
+	clock_gettime(CLOCK_MONOTONIC, &now);
 
 	while (NULL != (hashit = hash_iterate(globals->data_hash, hashit))) {
 		struct dataset *dataset = hashit->bucket->data;
 
-		if (dataset->last_seen + ALFRED_DATA_TIMEOUT >= now)
+		time_diff(&now, &dataset->last_seen, &diff);
+		if (diff.tv_sec < ALFRED_DATA_TIMEOUT)
 			continue;
 
 		hash_remove_bucket(globals->data_hash, hashit);
@@ -138,7 +139,8 @@ static int purge_data(struct globals *globals)
 	while (NULL != (hashit = hash_iterate(globals->server_hash, hashit))) {
 		struct server *server = hashit->bucket->data;
 
-		if (server->last_seen + ALFRED_SERVER_TIMEOUT >= now)
+		time_diff(&now, &server->last_seen, &diff);
+		if (diff.tv_sec < ALFRED_SERVER_TIMEOUT)
 			continue;
 
 		if (globals->best_server == server)
@@ -157,7 +159,7 @@ static int purge_data(struct globals *globals)
 int alfred_server(struct globals *globals)
 {
 	int maxsock, ret;
-	struct timeval tv, last_check, now;
+	struct timespec last_check, now, tv;
 	fd_set fds;
 
 	if (create_hashes(globals))
@@ -182,20 +184,20 @@ int alfred_server(struct globals *globals)
 	if (globals->unix_sock > maxsock)
 		maxsock = globals->unix_sock;
 
-	gettimeofday(&last_check, NULL);
+	clock_gettime(CLOCK_MONOTONIC, &last_check);
 
 	while (1) {
-		gettimeofday(&now, NULL);
+		clock_gettime(CLOCK_MONOTONIC, &now);
 		now.tv_sec -= ALFRED_INTERVAL;
 		if (!time_diff(&last_check, &now, &tv)) {
 			tv.tv_sec = 0;
-			tv.tv_usec = 0;
+			tv.tv_nsec = 0;
 		}
 
 		FD_ZERO(&fds);
 		FD_SET(globals->unix_sock, &fds);
 		FD_SET(globals->netsock, &fds);
-		ret = select(maxsock + 1, &fds, NULL, NULL, &tv);
+		ret = pselect(maxsock + 1, &fds, NULL, NULL, &tv, NULL);
 
 		if (ret == -1) {
 			fprintf(stderr, "main loop select failed ...: %s\n",
@@ -210,7 +212,7 @@ int alfred_server(struct globals *globals)
 				continue;
 			}
 		}
-		gettimeofday(&last_check, NULL);
+		clock_gettime(CLOCK_MONOTONIC, &last_check);
 
 		if (globals->opmode == OPMODE_MASTER) {
 			/* we are a master */

@@ -24,7 +24,7 @@ OBJ = main.o server.o client.o netsock.o send.o recv.o hash.o unix_sock.o util.o
 
 # alfred flags and options
 CFLAGS += -pedantic -Wall -W -std=gnu99 -fno-strict-aliasing -MD
-LDLIBS +=
+LDLIBS += -lrt
 
 # disable verbose output
 ifneq ($(findstring $(MAKEFLAGS),s),s)

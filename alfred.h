@@ -48,7 +48,7 @@ struct dataset {
 	struct alfred_data data;
 	unsigned char *buf;
 
-	time_t last_seen;
+	struct timespec last_seen;
 	enum data_source data_source;
 	uint8_t local_data;
 };
@@ -56,7 +56,7 @@ struct dataset {
 struct server {
 	struct ether_addr hwaddr;
 	struct in6_addr address;
-	time_t last_seen;
+	struct timespec last_seen;
 	uint8_t tq;
 };
 
@@ -125,7 +125,7 @@ int vis_update_data(struct globals *globals);
 int netsock_open(struct globals *globals);
 int netsock_close(int sock);
 /* util.c */
-int time_diff(struct timeval *tv1, struct timeval *tv2,
-	      struct timeval *tvdiff);
+int time_diff(struct timespec *tv1, struct timespec *tv2,
+	      struct timespec *tvdiff);
 void time_random_seed(void);
 uint16_t get_random_id(void);

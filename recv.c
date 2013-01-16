@@ -79,7 +79,7 @@ static int process_alfred_push_data(struct globals *globals,
 		if (dataset->data_source == SOURCE_LOCAL)
 			goto skip_data;
 
-		dataset->last_seen = time(NULL);
+		clock_gettime(CLOCK_MONOTONIC, &dataset->last_seen);
 
 		/* free old buffer */
 		if (dataset->buf)
@@ -146,7 +146,7 @@ process_alfred_announce_master(struct globals *globals,
 		}
 	}
 
-	server->last_seen = time(NULL);
+	clock_gettime(CLOCK_MONOTONIC, &server->last_seen);
 	if (strcmp(globals->mesh_iface, "none") != 0) {
 		macaddr = translate_mac(globals->mesh_iface,
 					(struct ether_addr *)&server->hwaddr);

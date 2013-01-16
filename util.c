@@ -24,14 +24,14 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-int time_diff(struct timeval *tv1, struct timeval *tv2,
-	      struct timeval *tvdiff) {
+int time_diff(struct timespec *tv1, struct timespec *tv2,
+	      struct timespec *tvdiff) {
 	tvdiff->tv_sec = tv1->tv_sec - tv2->tv_sec;
-	if (tv1->tv_usec < tv2->tv_usec) {
-		tvdiff->tv_usec = 1000000 + tv1->tv_usec - tv2->tv_usec;
+	if (tv1->tv_nsec < tv2->tv_nsec) {
+		tvdiff->tv_nsec = 1000000000 + tv1->tv_nsec - tv2->tv_nsec;
 		tvdiff->tv_sec -= 1;
 	} else {
-		tvdiff->tv_usec = tv1->tv_usec - tv2->tv_usec;
+		tvdiff->tv_nsec = tv1->tv_nsec - tv2->tv_nsec;
 	}
 
 	return (tvdiff->tv_sec >= 0);
