@@ -29,6 +29,7 @@
 #include <netinet/in.h>
 #include <time.h>
 #include "hash.h"
+#include "list.h"
 #include "packet.h"
 
 #define ALFRED_INTERVAL			10
@@ -51,6 +52,20 @@ struct dataset {
 	struct timespec last_seen;
 	enum data_source data_source;
 	uint8_t local_data;
+};
+
+struct transaction_packet {
+	struct alfred_push_data_v0 *push;
+	struct list_head list;
+};
+
+struct transaction_head {
+	struct ether_addr server_addr;
+	uint16_t id;
+	int finished;
+	int num_packet;
+	struct timespec last_rx_time;
+	struct list_head packet_list;
 };
 
 struct server {
@@ -88,6 +103,7 @@ struct globals {
 
 	struct hashtable_t *server_hash;
 	struct hashtable_t *data_hash;
+	struct hashtable_t *transaction_hash;
 };
 
 #define debugMalloc(size, num)	malloc(size)

@@ -33,20 +33,14 @@
 #include "alfred.h"
 #include "batadv_query.h"
 
-static int process_alfred_push_data(struct globals *globals,
-				    struct in6_addr *source,
-				    struct alfred_push_data_v0 *push)
+static int finish_alfred_push_data(struct globals *globals,
+				   struct ether_addr mac,
+				   struct alfred_push_data_v0 *push)
 {
 	int len, data_len;
 	struct alfred_data *data;
 	struct dataset *dataset;
 	uint8_t *pos;
-	struct ether_addr mac;
-	int ret;
-
-	ret = ipv6_to_mac(source, &mac);
-	if (ret < 0)
-		goto err;
 
 	len = ntohs(push->header.length);
 	len -= sizeof(*push) - sizeof(push->header);
@@ -103,6 +97,79 @@ skip_data:
 		pos += (sizeof(*data) + data_len);
 		len -= (sizeof(*data) + data_len);
 	}
+	return 0;
+err:
+	return -1;
+}
+
+static int process_alfred_push_data(struct globals *globals,
+				    struct in6_addr *source,
+				    struct alfred_push_data_v0 *push)
+{
+	int len;
+	struct ether_addr mac;
+	int ret;
+	struct transaction_head search, *head;
+	struct transaction_packet *transaction_packet;
+	int found;
+
+	ret = ipv6_to_mac(source, &mac);
+	if (ret < 0)
+		goto err;
+
+	len = ntohs(push->header.length);
+
+	search.server_addr = mac;
+	search.id = ntohs(push->tx.id);
+
+	head = hash_find(globals->transaction_hash, &search);
+	if (!head) {
+		head = malloc(sizeof(*head));
+		if (!head)
+			goto err;
+
+		head->server_addr = mac;
+		head->id = ntohs(push->tx.id);
+		head->finished = 0;
+		head->num_packet = 0;
+		INIT_LIST_HEAD(&head->packet_list);
+		if (hash_add(globals->transaction_hash, head)) {
+			free(head);
+			goto err;
+		}
+	}
+	clock_gettime(CLOCK_MONOTONIC, &head->last_rx_time);
+
+	/* this transaction was already finished/dropped */
+	if (head->finished != 0)
+		return -1;
+
+	found = 0;
+	list_for_each_entry(transaction_packet, &head->packet_list, list) {
+		if (transaction_packet->push->tx.seqno == push->tx.seqno) {
+			found = 1;
+			break;
+		}
+	}
+
+	/* it seems the packet was duplicated */
+	if (found)
+		return 0;
+
+	transaction_packet = malloc(sizeof(*transaction_packet));
+	if (!transaction_packet)
+		goto err;
+
+	transaction_packet->push = malloc(len + sizeof(push->header));
+	if (!transaction_packet->push) {
+		free(transaction_packet);
+		goto err;
+	}
+
+	memcpy(transaction_packet->push, push, len + sizeof(push->header));
+	list_add_tail(&transaction_packet->list, &head->packet_list);
+	head->num_packet++;
+
 	return 0;
 err:
 	return -1;
@@ -186,6 +253,62 @@ static int process_alfred_request(struct globals *globals,
 }
 
 
+static int process_alfred_status_txend(struct globals *globals,
+				       struct in6_addr *source,
+				       struct alfred_status_v0 *request)
+{
+
+	struct transaction_head search, *head;
+	struct transaction_packet *transaction_packet, *safe;
+	struct ether_addr mac;
+	int len, ret;
+
+	len = ntohs(request->header.length);
+
+	if (request->header.version != ALFRED_VERSION)
+		return -1;
+
+	if (len != (sizeof(*request) - sizeof(request->header)))
+		return -1;
+
+	ret = ipv6_to_mac(source, &mac);
+	if (ret < 0)
+		return -1;
+
+	search.server_addr = mac;
+	search.id = ntohs(request->tx.id);
+
+	head = hash_find(globals->transaction_hash, &search);
+	if (!head)
+		return -1;
+
+	/* this transaction was already finished/dropped */
+	if (head->finished != 0)
+		return -1;
+
+	/* missing packets -> cleanup everything */
+	if (head->num_packet != ntohs(request->tx.seqno))
+		head->finished = -1;
+	else
+		head->finished = 1;
+
+	list_for_each_entry_safe(transaction_packet, safe, &head->packet_list,
+				 list) {
+		if (head->finished == 1)
+			finish_alfred_push_data(globals, mac,
+						transaction_packet->push);
+
+		list_del(&transaction_packet->list);
+		free(transaction_packet->push);
+		free(transaction_packet);
+	}
+
+	hash_remove(globals->transaction_hash, &search);
+
+	return 0;
+}
+
+
 int recv_alfred_packet(struct globals *globals)
 {
 	uint8_t buf[MAX_PAYLOAD];
@@ -235,6 +358,9 @@ int recv_alfred_packet(struct globals *globals)
 		process_alfred_request(globals, &source.sin6_addr,
 				       (struct alfred_request_v0 *)packet);
 		break;
+	case ALFRED_STATUS_TXEND:
+		process_alfred_status_txend(globals, &source.sin6_addr,
+					    (struct alfred_status_v0 *)packet);
 	default:
 		/* unknown packet type */
 		return -1;

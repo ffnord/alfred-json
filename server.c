@@ -85,13 +85,52 @@ static int data_choose(void *d1, int size)
 	return hash % size;
 }
 
+static int tx_compare(void *d1, void *d2)
+{
+	struct transaction_head *txh1 = d1;
+	struct transaction_head *txh2 = d2;
+
+	if (memcmp(&txh1->server_addr, &txh2->server_addr,
+		   sizeof(txh1->server_addr)) == 0 &&
+	   txh1->id == txh2->id)
+		return 1;
+	else
+		return 0;
+}
+
+static int tx_choose(void *d1, int size)
+{
+	struct transaction_head *txh1 = d1;
+	unsigned char *key = (unsigned char *)&txh1->server_addr;
+	uint32_t hash = 0;
+	size_t i;
+
+	for (i = 0; i < ETH_ALEN; i++) {
+		hash += key[i];
+		hash += (hash << 10);
+		hash ^= (hash >> 6);
+	}
+
+	hash += txh1->id;
+	hash += (hash << 10);
+	hash ^= (hash >> 6);
+
+	hash += (hash << 3);
+	hash ^= (hash >> 11);
+	hash += (hash << 15);
+
+	return hash % size;
+}
+
 
 
 static int create_hashes(struct globals *globals)
 {
 	globals->server_hash = hash_new(64, server_compare, server_choose);
 	globals->data_hash = hash_new(128, data_compare, data_choose);
-	if (!globals->server_hash || !globals->data_hash)
+	globals->transaction_hash = hash_new(64, tx_compare, tx_choose);
+	if (!globals->server_hash || !globals->data_hash ||
+	    !globals->transaction_hash)
 		return -1;
 
 	return 0;
