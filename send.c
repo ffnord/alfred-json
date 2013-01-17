@@ -108,16 +108,18 @@ int push_data(struct globals *globals, struct in6_addr *destination,
 	}
 
 	/* send transaction txend packet */
-	status_end.header.type = ALFRED_STATUS_TXEND;
-	status_end.header.version = ALFRED_VERSION;
-	length = sizeof(status_end) - sizeof(status_end.header);
-	status_end.header.length = htons(length);
+	if (seqno > 0 || type_filter != NO_FILTER) { 
+		status_end.header.type = ALFRED_STATUS_TXEND;
+		status_end.header.version = ALFRED_VERSION;
+		length = sizeof(status_end) - sizeof(status_end.header);
+		status_end.header.length = htons(length);
 
-	status_end.tx.id = tx_id;
-	status_end.tx.seqno = htons(seqno);
+		status_end.tx.id = tx_id;
+		status_end.tx.seqno = htons(seqno);
 
-	send_alfred_packet(globals, destination, &status_end,
-			   sizeof(status_end));
+		send_alfred_packet(globals, destination, &status_end,
+				sizeof(status_end));
+	}
 
 	return 0;
 }
