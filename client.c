@@ -36,8 +36,10 @@ int alfred_client_request_data(struct globals *globals)
 	unsigned char buf[MAX_PAYLOAD], *pos;
 	struct alfred_request_v0 *request;
 	struct alfred_push_data_v0 *push;
+	struct alfred_status_v0 *status;
+	struct alfred_tlv *tlv;
 	struct alfred_data *data;
-	int ret, len, headlen, data_len, i;
+	int ret, len, data_len, i;
 
 	if (unix_sock_open_client(globals, ALFRED_SOCK_PATH))
 		return -1;
@@ -57,22 +59,40 @@ int alfred_client_request_data(struct globals *globals)
 		fprintf(stderr, "%s: only wrote %d of %d bytes: %s\n",
 			__func__, ret, len, strerror(errno));
 
-	headlen = sizeof(*push) + sizeof(*data);
 	push = (struct alfred_push_data_v0 *)buf;
-	while ((ret = read(globals->unix_sock, buf, headlen)) > 0) {
-		/* too short */
-		if (ret < headlen)
+	tlv = (struct alfred_tlv *)buf;
+	while ((ret = read(globals->unix_sock, buf, sizeof(*tlv))) > 0) {
+		if (ret < (int)sizeof(*tlv))
 			break;
+
+		if (tlv->type == ALFRED_STATUS_ERROR)
+			goto recv_err;
+
+		if (tlv->type != ALFRED_PUSH_DATA)
+			break;
+
+		/* read the rest of the header */
+		ret = read(globals->unix_sock, buf + sizeof(*tlv),
+			   sizeof(*push) - sizeof(*tlv));
+
+		/* too short */
+		if (ret < (int)(sizeof(*push) - (int)sizeof(*tlv)))
+			break;
+
+		/* read the rest of the header */
+		ret = read(globals->unix_sock, buf + sizeof(*push),
+			   sizeof(*data));
 
 		data = push->data;
 		data_len = ntohs(data->header.length);
 
 		/* would it fit? it should! */
-		if (data_len > (int)(sizeof(buf) - headlen))
+		if (data_len > (int)(sizeof(buf) - sizeof(*push)))
 			break;
 
 		/* read the data */
-		ret = read(globals->unix_sock, buf + headlen, data_len);
+		ret = read(globals->unix_sock,
+			   buf + sizeof(*push) + sizeof(*data), data_len);
 
 		/* again too short */
 		if (ret < data_len)
@@ -101,6 +121,20 @@ int alfred_client_request_data(struct globals *globals)
 	unix_sock_close(globals);
 
 	return 0;
+
+recv_err:
+	/* read the rest of the status message */
+	ret = read(globals->unix_sock, buf + sizeof(*tlv),
+		   sizeof(*status) - sizeof(*tlv));
+
+	/* too short */
+	if (ret < (int)(sizeof(*status) - sizeof(*tlv)))
+		return -1;
+
+	status = (struct alfred_status_v0 *)buf;
+	fprintf(stderr, "Request failed with %d\n", status->tx.seqno);
+
+	return status->tx.seqno;;
 }
 
 int alfred_client_set_data(struct globals *globals)

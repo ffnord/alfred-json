@@ -121,6 +121,10 @@ int alfred_client_request_data(struct globals *globals);
 int alfred_client_set_data(struct globals *globals);
 /* recv.c */
 int recv_alfred_packet(struct globals *globals);
+struct transaction_head *
+transaction_add(struct globals *globals, struct ether_addr mac, uint16_t id);
+struct transaction_head * transaction_clean(struct globals *globals,
+					    struct transaction_head *search);
 /* send.c */
 int push_data(struct globals *globals, struct in6_addr *destination,
 	      enum data_source max_source_level, int type_filter,

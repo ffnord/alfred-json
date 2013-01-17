@@ -102,6 +102,48 @@ err:
 	return -1;
 }
 
+struct transaction_head *
+transaction_add(struct globals *globals, struct ether_addr mac, uint16_t id)
+{
+	struct transaction_head *head;
+
+	head = malloc(sizeof(*head));
+	if (!head)
+		return NULL;
+
+	head->server_addr = mac;
+	head->id = id;
+	head->finished = 0;
+	head->num_packet = 0;
+	INIT_LIST_HEAD(&head->packet_list);
+	if (hash_add(globals->transaction_hash, head)) {
+		free(head);
+		return NULL;
+	}
+
+	return head;
+}
+
+struct transaction_head * transaction_clean(struct globals *globals,
+					    struct transaction_head *search)
+{
+	struct transaction_packet *transaction_packet, *safe;
+	struct transaction_head *head;
+
+	head = hash_find(globals->transaction_hash, search);
+	if (!head)
+		return head;
+
+	list_for_each_entry_safe(transaction_packet, safe, &head->packet_list,
+				 list) {
+		list_del(&transaction_packet->list);
+		free(transaction_packet->push);
+		free(transaction_packet);
+	}
+
+	return hash_remove(globals->transaction_hash, search);
+}
+
 static int process_alfred_push_data(struct globals *globals,
 				    struct in6_addr *source,
 				    struct alfred_push_data_v0 *push)
@@ -124,19 +166,14 @@ static int process_alfred_push_data(struct globals *globals,
 
 	head = hash_find(globals->transaction_hash, &search);
 	if (!head) {
-		head = malloc(sizeof(*head));
-		if (!head)
+		/* slave must create the transactions to be able to correctly
+		 *  wait for it */
+		if (globals->opmode != OPMODE_MASTER)
 			goto err;
 
-		head->server_addr = mac;
-		head->id = ntohs(push->tx.id);
-		head->finished = 0;
-		head->num_packet = 0;
-		INIT_LIST_HEAD(&head->packet_list);
-		if (hash_add(globals->transaction_hash, head)) {
-			free(head);
+		head = transaction_add(globals, mac, ntohs(push->tx.id));
+		if (!head)
 			goto err;
-		}
 	}
 	clock_gettime(CLOCK_MONOTONIC, &head->last_rx_time);
 
@@ -303,7 +340,10 @@ static int process_alfred_status_txend(struct globals *globals,
 		free(transaction_packet);
 	}
 
-	hash_remove(globals->transaction_hash, &search);
+	/* master mode only syncs. no client is waiting the finished
+	 * transaction */
+	if (globals->opmode == OPMODE_MASTER)
+		transaction_clean(globals, &search);
 
 	return 0;
 }

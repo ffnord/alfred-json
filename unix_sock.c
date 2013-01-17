@@ -158,6 +158,9 @@ static int unix_sock_req_data(struct globals *globals,
 	uint8_t buf[MAX_PAYLOAD];
 	struct alfred_push_data_v0 *push;
 	uint16_t seqno = 0;
+	uint16_t id;
+	struct transaction_head search, *head = NULL;
+	struct alfred_status_v0 status;
 
 	len = ntohs(request->header.length);
 
@@ -171,6 +174,14 @@ static int unix_sock_req_data(struct globals *globals,
 	/* a master already has data to respond with */
 	if (globals->opmode == OPMODE_MASTER)
 		goto send_reply;
+
+	id = ntohs(request->tx_id);
+	head = transaction_add(globals, globals->best_server->hwaddr, id);
+	if (!head)
+		return -1;
+
+	search.server_addr = globals->best_server->hwaddr;
+	search.id = id;
 
 	send_alfred_packet(globals, &globals->best_server->address,
 			   request, sizeof(*request));
@@ -200,7 +211,16 @@ static int unix_sock_req_data(struct globals *globals,
 			recv_alfred_packet(globals);
 	}
 
+	head = transaction_clean(globals, &search);
+	if (!head || head->finished != 1) {
+		free(head);
+		goto reply_error;
+	}
+
 send_reply:
+
+	if (globals->opmode != OPMODE_MASTER)
+		free(head);
 
 	/* send some data back through the unix socket */
 
@@ -227,6 +247,18 @@ send_reply:
 
 		write(client_sock, buf, sizeof(*push) + len);
 	}
+
+	return 0;
+
+reply_error:
+
+	free(head);
+	status.header.type = ALFRED_STATUS_ERROR;
+	status.header.version = ALFRED_VERSION;
+	status.header.length = htons(sizeof(status) - sizeof(status.header));
+	status.tx.id = request->tx_id;
+	status.tx.seqno = 1;
+	write(client_sock, &status, sizeof(status));
 
 	return 0;
 }
