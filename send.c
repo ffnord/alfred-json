@@ -58,6 +58,8 @@ int push_data(struct globals *globals, struct in6_addr *destination,
 	uint16_t total_length = 0;
 	size_t tlv_length;
 	uint16_t seqno = 0;
+	uint16_t length;
+	struct alfred_status_v0 status_end;
 
 	push = (struct alfred_push_data_v0 *)buf;
 	push->header.type = ALFRED_PUSH_DATA;
@@ -104,6 +106,18 @@ int push_data(struct globals *globals, struct in6_addr *destination,
 		send_alfred_packet(globals, destination, push,
 				   sizeof(*push) + total_length);
 	}
+
+	/* send transaction txend packet */
+	status_end.header.type = ALFRED_STATUS_TXEND;
+	status_end.header.version = ALFRED_VERSION;
+	length = sizeof(status_end) - sizeof(status_end.header);
+	status_end.header.length = htons(length);
+
+	status_end.tx.id = tx_id;
+	status_end.tx.seqno = htons(seqno);
+
+	send_alfred_packet(globals, destination, &status_end,
+			   sizeof(status_end));
 
 	return 0;
 }

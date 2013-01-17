@@ -66,11 +66,15 @@ struct alfred_transaction_mgmt {
  * @ALFRED_PUSH_DATA: Packet is an alfred_push_data_v*
  * @ALFRED_ANNOUNCE_MASTER: Packet is an alfred_announce_master_v*
  * @ALFRED_REQUEST: Packet is an alfred_request_v*
+ * @ALFRED_STATUS_TXEND: Transaction was finished by sender
+ * @ALFRED_STATUS_ERROR: Error was detected during the transaction
  */
 enum alfred_packet_type {
 	ALFRED_PUSH_DATA = 0,
 	ALFRED_ANNOUNCE_MASTER = 1,
 	ALFRED_REQUEST = 2,
+	ALFRED_STATUS_TXEND = 3,
+	ALFRED_STATUS_ERROR = 4,
 };
 
 /* packets */
@@ -114,6 +118,22 @@ struct alfred_request_v0 {
 	struct alfred_tlv header;
 	uint8_t requested_type;
 	uint16_t tx_id;
+} __packed;
+
+/**
+ * struct alfred_status_v0 - Status info of a transaction
+ * @header: TLV header describing the complete packet
+ * @tx: Transaction identificator and sequence number of packet
+ *
+ * The sequence number has a special meaning. Failure status packets use
+ * it to store the error code. Success status packets store the number of
+ * transfered packets in it.
+ *
+ * Sent as unicast to the node requesting the data
+ */
+struct alfred_status_v0 {
+	struct alfred_tlv header;
+	struct alfred_transaction_mgmt tx;
 } __packed;
 
 #define ALFRED_VERSION			0
