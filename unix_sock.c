@@ -193,7 +193,7 @@ static int unix_sock_req_data(struct globals *globals,
 	while (1) {
 		clock_gettime(CLOCK_MONOTONIC, &now);
 		now.tv_sec -= ALFRED_REQUEST_TIMEOUT;
-		if (!time_diff(&last_check, &now, &tv))
+		if (!time_diff(&last_check, &now, &tv) || head->finished)
 			break;
 
 		FD_SET(globals->netsock, &fds);
