@@ -253,7 +253,7 @@ int unix_sock_read(struct globals *globals)
 
 	packet = (struct alfred_packet *)buf;
 
-	if (length - headsize < ((int)ntohs(packet->length)))
+	if ((length - headsize) < ((int)ntohs(packet->length)))
 		goto err;
 
 	if (packet->version != ALFRED_VERSION)
