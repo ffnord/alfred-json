@@ -180,10 +180,11 @@ static int unix_sock_req_data_reply(struct globals *globals, int client_sock,
 		memcpy(data->data, dataset->buf, dataset->data.header.length);
 
 		len = dataset->data.header.length + sizeof(*data);
+		len += sizeof(*push) - sizeof(push->header);
 		push->header.length = htons(len);
 		push->tx.seqno = htons(seqno++);
 
-		write(client_sock, buf, sizeof(*push) + len);
+		write(client_sock, buf, sizeof(push->header) + len);
 	}
 
 	close(client_sock);
