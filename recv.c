@@ -113,8 +113,11 @@ transaction_add(struct globals *globals, struct ether_addr mac, uint16_t id)
 
 	head->server_addr = mac;
 	head->id = id;
+	head->requested_type = 0;
 	head->finished = 0;
 	head->num_packet = 0;
+	head->client_socket = -1;
+	clock_gettime(CLOCK_MONOTONIC, &head->last_rx_time);
 	INIT_LIST_HEAD(&head->packet_list);
 	if (hash_add(globals->transaction_hash, head)) {
 		free(head);
@@ -124,15 +127,10 @@ transaction_add(struct globals *globals, struct ether_addr mac, uint16_t id)
 	return head;
 }
 
-struct transaction_head * transaction_clean(struct globals *globals,
-					    struct transaction_head *search)
+struct transaction_head *transaction_clean(struct globals *globals,
+					   struct transaction_head *head)
 {
 	struct transaction_packet *transaction_packet, *safe;
-	struct transaction_head *head;
-
-	head = hash_find(globals->transaction_hash, search);
-	if (!head)
-		return head;
 
 	list_for_each_entry_safe(transaction_packet, safe, &head->packet_list,
 				 list) {
@@ -141,7 +139,20 @@ struct transaction_head * transaction_clean(struct globals *globals,
 		free(transaction_packet);
 	}
 
-	return hash_remove(globals->transaction_hash, search);
+	hash_remove(globals->transaction_hash, head);
+	return head;
+}
+
+struct transaction_head *
+transaction_clean_hash(struct globals *globals, struct transaction_head *search)
+{
+	struct transaction_head *head;
+
+	head = hash_find(globals->transaction_hash, search);
+	if (!head)
+		return head;
+
+	return transaction_clean(globals, head);
 }
 
 static int process_alfred_push_data(struct globals *globals,
@@ -340,10 +351,14 @@ static int process_alfred_status_txend(struct globals *globals,
 		free(transaction_packet);
 	}
 
-	/* master mode only syncs. no client is waiting the finished
-	 * transaction */
-	if (globals->opmode == OPMODE_MASTER)
-		transaction_clean(globals, &search);
+	head = transaction_clean_hash(globals, &search);
+	if (!head)
+		return -1;
+
+	if (head->client_socket < 0)
+		free(head);
+	else
+		unix_sock_req_data_finish(globals, head);
 
 	return 0;
 }

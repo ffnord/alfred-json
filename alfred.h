@@ -33,7 +33,7 @@
 #include "packet.h"
 
 #define ALFRED_INTERVAL			10
-#define ALFRED_REQUEST_TIMEOUT		1
+#define ALFRED_REQUEST_TIMEOUT		10
 #define ALFRED_SERVER_TIMEOUT		60
 #define ALFRED_DATA_TIMEOUT		600
 #define ALFRED_SOCK_PATH		"/var/run/alfred.sock"
@@ -62,8 +62,10 @@ struct transaction_packet {
 struct transaction_head {
 	struct ether_addr server_addr;
 	uint16_t id;
+	uint8_t requested_type;
 	int finished;
 	int num_packet;
+	int client_socket;
 	struct timespec last_rx_time;
 	struct list_head packet_list;
 };
@@ -123,8 +125,11 @@ int alfred_client_set_data(struct globals *globals);
 int recv_alfred_packet(struct globals *globals);
 struct transaction_head *
 transaction_add(struct globals *globals, struct ether_addr mac, uint16_t id);
-struct transaction_head * transaction_clean(struct globals *globals,
-					    struct transaction_head *search);
+struct transaction_head *
+transaction_clean_hash(struct globals *globals,
+		       struct transaction_head *search);
+struct transaction_head *transaction_clean(struct globals *globals,
+					   struct transaction_head *head);
 /* send.c */
 int push_data(struct globals *globals, struct in6_addr *destination,
 	      enum data_source max_source_level, int type_filter,
@@ -139,6 +144,8 @@ int unix_sock_read(struct globals *globals);
 int unix_sock_open_daemon(struct globals *globals, char *path);
 int unix_sock_open_client(struct globals *globals, char *path);
 int unix_sock_close(struct globals *globals);
+int unix_sock_req_data_finish(struct globals *globals,
+			      struct transaction_head *head);
 /* vis.c */
 int vis_update_data(struct globals *globals);
 /* netsock.c */

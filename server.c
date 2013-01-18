@@ -192,6 +192,21 @@ static int purge_data(struct globals *globals)
 	if (!globals->best_server)
 		set_best_server(globals);
 
+	while ((hashit = hash_iterate(globals->transaction_hash, hashit))) {
+		struct transaction_head *head = hashit->bucket->data;
+
+		time_diff(&now, &head->last_rx_time, &diff);
+		if (diff.tv_sec < ALFRED_REQUEST_TIMEOUT)
+			continue;
+
+		hash_remove_bucket(globals->transaction_hash, hashit);
+		transaction_clean(globals, head);
+		if (head->client_socket < 0)
+			free(head);
+		else
+			unix_sock_req_data_finish(globals, head);
+	}
+
 	return 0;
 }
 

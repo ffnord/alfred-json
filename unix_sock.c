@@ -91,42 +91,43 @@ int unix_sock_open_client(struct globals *globals, char *path)
 
 
 static int unix_sock_add_data(struct globals *globals,
-			      struct alfred_push_data_v0 *push)
+			      struct alfred_push_data_v0 *push,
+			      int client_sock)
 {
 	struct alfred_data *data;
 	struct dataset *dataset;
-	int len, data_len;
+	int len, data_len, ret = -1;
 
 	len = ntohs(push->header.length);
 
 	if (len < (int)(sizeof(*push) + sizeof(push->header)))
-		return -1;
+		goto err;
 
 	/* subtract rest of push header */
 	len -= sizeof(*push) - sizeof(push->header);
 
 	if (len < (int)(sizeof(*data)))
-		return -1;
+		goto err;
 
 	data = push->data;
 	data_len = ntohs(data->header.length);
 	memcpy(data->source, &globals->hwaddr, sizeof(globals->hwaddr));
 
 	if ((int)(data_len + sizeof(*data)) > len)
-		return -1;
+		goto err;
 
 	dataset = hash_find(globals->data_hash, data);
 	if (!dataset) {
 		dataset = malloc(sizeof(*dataset));
 		if (!dataset)
-			return -1;
+			goto err;
 
 		dataset->buf = NULL;
 
 		memcpy(&dataset->data, data, sizeof(*data));
 		if (hash_add(globals->data_hash, dataset)) {
 			free(dataset);
-			return -1;
+			goto err;
 		}
 	}
 	dataset->data_source = SOURCE_LOCAL;
@@ -138,102 +139,39 @@ static int unix_sock_add_data(struct globals *globals,
 	dataset->buf = malloc(data_len);
 	/* that's not good */
 	if (!dataset->buf)
-		return -1;
+		goto err;
 
 	dataset->data.header.length = data_len;
 	memcpy(dataset->buf, data->data, data_len);
 
-	return 0;
+	ret = 0;
+err:
+	close(client_sock);
+	return ret;
 }
 
 
-static int unix_sock_req_data(struct globals *globals,
-			      struct alfred_request_v0 *request,
-			      int client_sock)
+static int unix_sock_req_data_reply(struct globals *globals, int client_sock,
+				    uint16_t id, uint8_t requested_type)
 {
-	struct hash_it_t *hashit = NULL;
-	struct timespec tv, last_check, now;
-	fd_set fds;
-	int ret, len;
-	uint8_t buf[MAX_PAYLOAD];
+	int len;
 	struct alfred_push_data_v0 *push;
+	struct hash_it_t *hashit = NULL;
+	uint8_t buf[MAX_PAYLOAD];
 	uint16_t seqno = 0;
-	uint16_t id;
-	struct transaction_head search, *head = NULL;
-	struct alfred_status_v0 status;
-
-	len = ntohs(request->header.length);
-
-	if (len != (sizeof(*request) - sizeof(request->header)))
-		return -1;
-
-	/* no server to send the request to, only give back what we have now. */
-	if (!globals->best_server)
-		goto send_reply;
-
-	/* a master already has data to respond with */
-	if (globals->opmode == OPMODE_MASTER)
-		goto send_reply;
-
-	id = ntohs(request->tx_id);
-	head = transaction_add(globals, globals->best_server->hwaddr, id);
-	if (!head)
-		return -1;
-
-	search.server_addr = globals->best_server->hwaddr;
-	search.id = id;
-
-	send_alfred_packet(globals, &globals->best_server->address,
-			   request, sizeof(*request));
-
-	/* process incoming packets ... */
-	FD_ZERO(&fds);
-	clock_gettime(CLOCK_MONOTONIC, &last_check);
-
-	while (1) {
-		clock_gettime(CLOCK_MONOTONIC, &now);
-		now.tv_sec -= ALFRED_REQUEST_TIMEOUT;
-		if (!time_diff(&last_check, &now, &tv) || head->finished)
-			break;
-
-		FD_SET(globals->netsock, &fds);
-
-		ret = pselect(globals->netsock + 1, &fds, NULL, NULL, &tv,
-			      NULL);
-
-		if (ret == -1) {
-			fprintf(stderr, "select failed ...: %s\n",
-				strerror(errno));
-			return -1;
-		}
-
-		if (FD_ISSET(globals->netsock, &fds))
-			recv_alfred_packet(globals);
-	}
-
-	head = transaction_clean(globals, &search);
-	if (!head || head->finished != 1) {
-		free(head);
-		goto reply_error;
-	}
-
-send_reply:
-
-	if (globals->opmode != OPMODE_MASTER)
-		free(head);
 
 	/* send some data back through the unix socket */
 
 	push = (struct alfred_push_data_v0 *)buf;
 	push->header.type = ALFRED_PUSH_DATA;
 	push->header.version = ALFRED_VERSION;
-	push->tx.id = request->tx_id;
+	push->tx.id = htons(id);
 
 	while (NULL != (hashit = hash_iterate(globals->data_hash, hashit))) {
 		struct dataset *dataset = hashit->bucket->data;
 		struct alfred_data *data;
 
-		if (dataset->data.header.type != request->requested_type)
+		if (dataset->data.header.type != requested_type)
 			continue;
 
 		data = push->data;
@@ -248,18 +186,80 @@ send_reply:
 		write(client_sock, buf, sizeof(*push) + len);
 	}
 
-	return 0;
+	close(client_sock);
 
-reply_error:
+	return 0;
+}
+
+static int unix_sock_req_data(struct globals *globals,
+			      struct alfred_request_v0 *request,
+			      int client_sock)
+{
+	int len;
+	uint16_t id;
+	struct transaction_head *head = NULL;
+
+	len = ntohs(request->header.length);
+
+	if (len != (sizeof(*request) - sizeof(request->header)))
+		return -1;
+
+	id = ntohs(request->tx_id);
+
+	/* no server to send the request to, only give back what we have now. */
+	if (!globals->best_server)
+		return unix_sock_req_data_reply(globals, client_sock, id,
+						request->requested_type);
+
+	/* a master already has data to respond with */
+	if (globals->opmode == OPMODE_MASTER)
+		return unix_sock_req_data_reply(globals, client_sock, id,
+						request->requested_type);
+
+	head = transaction_add(globals, globals->best_server->hwaddr, id);
+	if (!head)
+		return -1;
+
+	head->client_socket = client_sock;
+	head->requested_type = request->requested_type;
+
+	send_alfred_packet(globals, &globals->best_server->address,
+			   request, sizeof(*request));
+
+	return 0;
+}
+
+int unix_sock_req_data_finish(struct globals *globals,
+			      struct transaction_head *head)
+{
+	struct alfred_status_v0 status;
+	int send_data = 1;
+	int client_sock;
+	uint16_t id;
+	uint8_t requested_type;
+
+	requested_type = head->requested_type;
+	id = head->id;
+	client_sock = head->client_socket;
+	if (head->finished != 1)
+		send_data = 0;
 
 	free(head);
+
+	if (send_data) {
+		unix_sock_req_data_reply(globals, client_sock, id,
+					 requested_type);
+		return 0;
+	}
+
 	status.header.type = ALFRED_STATUS_ERROR;
 	status.header.version = ALFRED_VERSION;
 	status.header.length = htons(sizeof(status) - sizeof(status.header));
-	status.tx.id = request->tx_id;
+	status.tx.id = htons(id);
 	status.tx.seqno = 1;
 	write(client_sock, &status, sizeof(status));
 
+	close(client_sock);
 	return 0;
 }
 
@@ -306,7 +306,8 @@ int unix_sock_read(struct globals *globals)
 	switch (packet->type) {
 	case ALFRED_PUSH_DATA:
 		ret = unix_sock_add_data(globals,
-					 (struct alfred_push_data_v0 *)packet);
+					 (struct alfred_push_data_v0 *)packet,
+					 client_sock);
 		break;
 	case ALFRED_REQUEST:
 		ret = unix_sock_req_data(globals,
@@ -316,7 +317,11 @@ int unix_sock_read(struct globals *globals)
 	default:
 		/* unknown packet type */
 		ret = -1;
+		goto err;
 	}
+
+	return ret;
+
 err:
 	close(client_sock);
 	return ret;
