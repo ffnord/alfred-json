@@ -85,13 +85,52 @@ static int data_choose(void *d1, int size)
 	return hash % size;
 }
 
+static int tx_compare(void *d1, void *d2)
+{
+	struct transaction_head *txh1 = d1;
+	struct transaction_head *txh2 = d2;
+
+	if (memcmp(&txh1->server_addr, &txh2->server_addr,
+		   sizeof(txh1->server_addr)) == 0 &&
+	   txh1->id == txh2->id)
+		return 1;
+	else
+		return 0;
+}
+
+static int tx_choose(void *d1, int size)
+{
+	struct transaction_head *txh1 = d1;
+	unsigned char *key = (unsigned char *)&txh1->server_addr;
+	uint32_t hash = 0;
+	size_t i;
+
+	for (i = 0; i < ETH_ALEN; i++) {
+		hash += key[i];
+		hash += (hash << 10);
+		hash ^= (hash >> 6);
+	}
+
+	hash += txh1->id;
+	hash += (hash << 10);
+	hash ^= (hash >> 6);
+
+	hash += (hash << 3);
+	hash ^= (hash >> 11);
+	hash += (hash << 15);
+
+	return hash % size;
+}
+
 
 
 static int create_hashes(struct globals *globals)
 {
 	globals->server_hash = hash_new(64, server_compare, server_choose);
 	globals->data_hash = hash_new(128, data_compare, data_choose);
-	if (!globals->server_hash || !globals->data_hash)
+	globals->transaction_hash = hash_new(64, tx_compare, tx_choose);
+	if (!globals->server_hash || !globals->data_hash ||
+	    !globals->transaction_hash)
 		return -1;
 
 	return 0;
@@ -120,14 +159,15 @@ int set_best_server(struct globals *globals)
 static int purge_data(struct globals *globals)
 {
 	struct hash_it_t *hashit = NULL;
-	time_t now;
+	struct timespec now, diff;
 
-	now = time(NULL);
+	clock_gettime(CLOCK_MONOTONIC, &now);
 
 	while (NULL != (hashit = hash_iterate(globals->data_hash, hashit))) {
 		struct dataset *dataset = hashit->bucket->data;
 
-		if (dataset->last_seen + ALFRED_DATA_TIMEOUT >= now)
+		time_diff(&now, &dataset->last_seen, &diff);
+		if (diff.tv_sec < ALFRED_DATA_TIMEOUT)
 			continue;
 
 		hash_remove_bucket(globals->data_hash, hashit);
@@ -138,7 +178,8 @@ static int purge_data(struct globals *globals)
 	while (NULL != (hashit = hash_iterate(globals->server_hash, hashit))) {
 		struct server *server = hashit->bucket->data;
 
-		if (server->last_seen + ALFRED_SERVER_TIMEOUT >= now)
+		time_diff(&now, &server->last_seen, &diff);
+		if (diff.tv_sec < ALFRED_SERVER_TIMEOUT)
 			continue;
 
 		if (globals->best_server == server)
@@ -151,13 +192,28 @@ static int purge_data(struct globals *globals)
 	if (!globals->best_server)
 		set_best_server(globals);
 
+	while ((hashit = hash_iterate(globals->transaction_hash, hashit))) {
+		struct transaction_head *head = hashit->bucket->data;
+
+		time_diff(&now, &head->last_rx_time, &diff);
+		if (diff.tv_sec < ALFRED_REQUEST_TIMEOUT)
+			continue;
+
+		hash_remove_bucket(globals->transaction_hash, hashit);
+		transaction_clean(globals, head);
+		if (head->client_socket < 0)
+			free(head);
+		else
+			unix_sock_req_data_finish(globals, head);
+	}
+
 	return 0;
 }
 
 int alfred_server(struct globals *globals)
 {
 	int maxsock, ret;
-	struct timeval tv, last_check, now;
+	struct timespec last_check, now, tv;
 	fd_set fds;
 
 	if (create_hashes(globals))
@@ -182,20 +238,20 @@ int alfred_server(struct globals *globals)
 	if (globals->unix_sock > maxsock)
 		maxsock = globals->unix_sock;
 
-	gettimeofday(&last_check, NULL);
+	clock_gettime(CLOCK_MONOTONIC, &last_check);
 
 	while (1) {
-		gettimeofday(&now, NULL);
+		clock_gettime(CLOCK_MONOTONIC, &now);
 		now.tv_sec -= ALFRED_INTERVAL;
 		if (!time_diff(&last_check, &now, &tv)) {
 			tv.tv_sec = 0;
-			tv.tv_usec = 0;
+			tv.tv_nsec = 0;
 		}
 
 		FD_ZERO(&fds);
 		FD_SET(globals->unix_sock, &fds);
 		FD_SET(globals->netsock, &fds);
-		ret = select(maxsock + 1, &fds, NULL, NULL, &tv);
+		ret = pselect(maxsock + 1, &fds, NULL, NULL, &tv, NULL);
 
 		if (ret == -1) {
 			fprintf(stderr, "main loop select failed ...: %s\n",
@@ -210,7 +266,7 @@ int alfred_server(struct globals *globals)
 				continue;
 			}
 		}
-		gettimeofday(&last_check, NULL);
+		clock_gettime(CLOCK_MONOTONIC, &last_check);
 
 		if (globals->opmode == OPMODE_MASTER) {
 			/* we are a master */

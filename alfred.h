@@ -29,10 +29,11 @@
 #include <netinet/in.h>
 #include <time.h>
 #include "hash.h"
+#include "list.h"
 #include "packet.h"
 
 #define ALFRED_INTERVAL			10
-#define ALFRED_REQUEST_TIMEOUT		1
+#define ALFRED_REQUEST_TIMEOUT		10
 #define ALFRED_SERVER_TIMEOUT		60
 #define ALFRED_DATA_TIMEOUT		600
 #define ALFRED_SOCK_PATH		"/var/run/alfred.sock"
@@ -44,21 +45,35 @@ enum data_source {
 	SOURCE_SYNCED = 2,
 };
 
-struct alfred_data;
-
 struct dataset {
 	struct alfred_data data;
 	unsigned char *buf;
 
-	time_t last_seen;
+	struct timespec last_seen;
 	enum data_source data_source;
 	uint8_t local_data;
+};
+
+struct transaction_packet {
+	struct alfred_push_data_v0 *push;
+	struct list_head list;
+};
+
+struct transaction_head {
+	struct ether_addr server_addr;
+	uint16_t id;
+	uint8_t requested_type;
+	int finished;
+	int num_packet;
+	int client_socket;
+	struct timespec last_rx_time;
+	struct list_head packet_list;
 };
 
 struct server {
 	struct ether_addr hwaddr;
 	struct in6_addr address;
-	time_t last_seen;
+	struct timespec last_seen;
 	uint8_t tq;
 };
 
@@ -90,12 +105,11 @@ struct globals {
 
 	struct hashtable_t *server_hash;
 	struct hashtable_t *data_hash;
+	struct hashtable_t *transaction_hash;
 };
 
 #define debugMalloc(size, num)	malloc(size)
 #define debugFree(ptr, num)	free(ptr)
-
-#define ALFRED_HEADLEN		sizeof(struct alfred_packet)
 
 #define MAX_PAYLOAD ((1 << 16) - 1)
 
@@ -109,9 +123,17 @@ int alfred_client_request_data(struct globals *globals);
 int alfred_client_set_data(struct globals *globals);
 /* recv.c */
 int recv_alfred_packet(struct globals *globals);
+struct transaction_head *
+transaction_add(struct globals *globals, struct ether_addr mac, uint16_t id);
+struct transaction_head *
+transaction_clean_hash(struct globals *globals,
+		       struct transaction_head *search);
+struct transaction_head *transaction_clean(struct globals *globals,
+					   struct transaction_head *head);
 /* send.c */
 int push_data(struct globals *globals, struct in6_addr *destination,
-	      enum data_source max_source_level, int type_filter);
+	      enum data_source max_source_level, int type_filter,
+	      uint16_t tx_id);
 int announce_master(struct globals *globals);
 int push_local_data(struct globals *globals);
 int sync_data(struct globals *globals);
@@ -122,11 +144,15 @@ int unix_sock_read(struct globals *globals);
 int unix_sock_open_daemon(struct globals *globals, char *path);
 int unix_sock_open_client(struct globals *globals, char *path);
 int unix_sock_close(struct globals *globals);
+int unix_sock_req_data_finish(struct globals *globals,
+			      struct transaction_head *head);
 /* vis.c */
 int vis_update_data(struct globals *globals);
 /* netsock.c */
 int netsock_open(struct globals *globals);
 int netsock_close(int sock);
 /* util.c */
-int time_diff(struct timeval *tv1, struct timeval *tv2,
-	      struct timeval *tvdiff);
+int time_diff(struct timespec *tv1, struct timespec *tv2,
+	      struct timespec *tvdiff);
+void time_random_seed(void);
+uint16_t get_random_id(void);

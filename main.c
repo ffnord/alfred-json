@@ -38,7 +38,7 @@ static void alfred_usage(void)
 	printf("                              for the supplied data type (0-255)\n");
 	printf("  -r, --request [data type]   collect data from the network and prints\n");
 	printf("                              it on the network\n");
-	printf("  -V, --req-version           specify the data version set/requested for -s and -r\n");
+	printf("  -V, --req-version           specify the data version set for -s\n");
 	printf("\n");
 	printf("server mode options:\n");
 	printf("  -i, --interface             specify the interface to listen on\n");
@@ -80,6 +80,8 @@ static struct globals *alfred_init(int argc, char *argv[])
 	globals->best_server = NULL;
 	globals->clientmode_version = 0;
 	globals->mesh_iface = "bat0";
+
+	time_random_seed();
 
 	while ((opt = getopt_long(argc, argv, "ms:r:hi:b:vV:", long_options,
 				  &opt_ind)) != -1) {

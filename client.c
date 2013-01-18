@@ -34,47 +34,71 @@
 int alfred_client_request_data(struct globals *globals)
 {
 	unsigned char buf[MAX_PAYLOAD], *pos;
-	struct alfred_packet *packet;
+	struct alfred_request_v0 *request;
+	struct alfred_push_data_v0 *push;
+	struct alfred_status_v0 *status;
+	struct alfred_tlv *tlv;
 	struct alfred_data *data;
-	int ret, len, headlen, data_len, i;
+	int ret, len, data_len, i;
 
 	if (unix_sock_open_client(globals, ALFRED_SOCK_PATH))
 		return -1;
 
-	packet = (struct alfred_packet *)buf;
-	len = sizeof(*packet) + 1;
+	request = (struct alfred_request_v0 *)buf;
+	len = sizeof(*request);
 
-	packet->type = ALFRED_REQUEST;
-	packet->version = ALFRED_VERSION;
-	packet->length = htons(1);
-	*((uint8_t *)(packet + 1)) = globals->clientmode_arg;
+	request->header.type = ALFRED_REQUEST;
+	request->header.version = ALFRED_VERSION;
+	request->header.length = sizeof(*request) - sizeof(request->header);
+	request->header.length = htons(request->header.length);
+	request->requested_type = globals->clientmode_arg;
+	request->tx_id = get_random_id();
 
 	ret = write(globals->unix_sock, buf, len);
 	if (ret != len)
 		fprintf(stderr, "%s: only wrote %d of %d bytes: %s\n",
 			__func__, ret, len, strerror(errno));
 
-	headlen = sizeof(*packet) + sizeof(*data);
-	while ((ret = read(globals->unix_sock, buf, headlen)) > 0) {
-		/* too short */
-		if (ret < headlen)
+	push = (struct alfred_push_data_v0 *)buf;
+	tlv = (struct alfred_tlv *)buf;
+	while ((ret = read(globals->unix_sock, buf, sizeof(*tlv))) > 0) {
+		if (ret < (int)sizeof(*tlv))
 			break;
 
-		data = (struct alfred_data *)(packet + 1);
-		data_len = ntohs(data->length);
+		if (tlv->type == ALFRED_STATUS_ERROR)
+			goto recv_err;
+
+		if (tlv->type != ALFRED_PUSH_DATA)
+			break;
+
+		/* read the rest of the header */
+		ret = read(globals->unix_sock, buf + sizeof(*tlv),
+			   sizeof(*push) - sizeof(*tlv));
+
+		/* too short */
+		if (ret < (int)(sizeof(*push) - (int)sizeof(*tlv)))
+			break;
+
+		/* read the rest of the header */
+		ret = read(globals->unix_sock, buf + sizeof(*push),
+			   sizeof(*data));
+
+		data = push->data;
+		data_len = ntohs(data->header.length);
 
 		/* would it fit? it should! */
-		if (data_len > (int)(sizeof(buf) - headlen))
+		if (data_len > (int)(sizeof(buf) - sizeof(*push)))
 			break;
 
 		/* read the data */
-		ret = read(globals->unix_sock, buf + headlen, data_len);
+		ret = read(globals->unix_sock,
+			   buf + sizeof(*push) + sizeof(*data), data_len);
 
 		/* again too short */
 		if (ret < data_len)
 			break;
 
-		pos = (uint8_t *)(data + 1);
+		pos = data->data;
 
 		printf("{ \"%02x:%02x:%02x:%02x:%02x:%02x\", \"",
 		       data->source[0], data->source[1],
@@ -97,21 +121,35 @@ int alfred_client_request_data(struct globals *globals)
 	unix_sock_close(globals);
 
 	return 0;
+
+recv_err:
+	/* read the rest of the status message */
+	ret = read(globals->unix_sock, buf + sizeof(*tlv),
+		   sizeof(*status) - sizeof(*tlv));
+
+	/* too short */
+	if (ret < (int)(sizeof(*status) - sizeof(*tlv)))
+		return -1;
+
+	status = (struct alfred_status_v0 *)buf;
+	fprintf(stderr, "Request failed with %d\n", status->tx.seqno);
+
+	return status->tx.seqno;;
 }
 
 int alfred_client_set_data(struct globals *globals)
 {
 	unsigned char buf[MAX_PAYLOAD];
-	struct alfred_packet *packet;
+	struct alfred_push_data_v0 *push;
 	struct alfred_data *data;
 	int ret, len;
 
 	if (unix_sock_open_client(globals, ALFRED_SOCK_PATH))
 		return -1;
 
-	packet = (struct alfred_packet *)buf;
-	data = (struct alfred_data *)(packet + 1);
-	len = sizeof(*packet) + sizeof(*data);
+	push = (struct alfred_push_data_v0 *)buf;
+	data = push->data;
+	len = sizeof(*push) + sizeof(*data);
 	while (!feof(stdin)) {
 		ret = fread(&buf[len], 1, sizeof(buf) - len, stdin);
 		len += ret;
@@ -120,16 +158,17 @@ int alfred_client_set_data(struct globals *globals)
 			break;
 	}
 
-	packet->type = ALFRED_PUSH_DATA;
-	packet->version = ALFRED_VERSION;
-	packet->length = htons(len - sizeof(*packet));
+	push->header.type = ALFRED_PUSH_DATA;
+	push->header.version = ALFRED_VERSION;
+	push->header.length = htons(len - sizeof(push->header));
+	push->tx.id = get_random_id();
+	push->tx.seqno = htons(0);
 
 	/* we leave data->source "empty" */
 	memset(data->source, 0, sizeof(data->source));
-	data->type = globals->clientmode_arg;
-	data->version = globals->clientmode_version;
-	data->length = htons(len - sizeof(*packet) - sizeof(*data));
-
+	data->header.type = globals->clientmode_arg;
+	data->header.version = globals->clientmode_version;
+	data->header.length = htons(len - sizeof(*push) - sizeof(*data));
 
 	ret = write(globals->unix_sock, buf, len);
 	if (ret != len)
@@ -139,5 +178,3 @@ int alfred_client_set_data(struct globals *globals)
 	unix_sock_close(globals);
 	return 0;
 }
-
-
