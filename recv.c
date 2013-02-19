@@ -416,6 +416,7 @@ int recv_alfred_packet(struct globals *globals)
 	case ALFRED_STATUS_TXEND:
 		process_alfred_status_txend(globals, &source.sin6_addr,
 					    (struct alfred_status_v0 *)packet);
+		break;
 	default:
 		/* unknown packet type */
 		return -1;
