@@ -28,6 +28,7 @@
 #include <arpa/inet.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <signal.h>
 #include "alfred.h"
 
 static void alfred_usage(void)
@@ -132,6 +133,9 @@ static struct globals *alfred_init(int argc, char *argv[])
 			return NULL;
 		}
 	}
+
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
+		fprintf(stderr, "could not register SIGPIPE handler\n");
 	return globals;
 }
 
