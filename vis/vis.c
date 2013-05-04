@@ -618,7 +618,7 @@ static struct globals *vis_init(int argc, char *argv[])
 	globals->interface = "bat0";
 	globals->vis_format = FORMAT_DOT;
 
-	while ((opt = getopt_long(argc, argv, "shf:i:v:", long_options,
+	while ((opt = getopt_long(argc, argv, "shf:i:v", long_options,
 				  &opt_ind)) != -1) {
 		switch (opt) {
 		case 's':
