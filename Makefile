@@ -94,4 +94,4 @@ vis-clean:
 DEP = $(OBJ:.o=.d)
 -include $(DEP)
 
-.PHONY: all clean install
+.PHONY: all clean install vis-install vis-all vis-clean
