@@ -82,13 +82,13 @@ install: $(BINARY_NAME) $(VIS_INSTALL)
 	$(INSTALL) -m 0755 $(BINARY_NAME) $(DESTDIR)$(SBINDIR)
 
 vis-install:
-	make -C vis install
+	$(MAKE) -C vis install
 
 vis-all:
-	make -C vis all
+	$(MAKE) -C vis all
 
 vis-clean:
-	make -C vis clean
+	$(MAKE) -C vis clean
 
 # load dependencies
 DEP = $(OBJ:.o=.d)
