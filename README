@@ -1,6 +1,194 @@
 A.L.F.R.E.D - Almight Lightweight Fact Remote Exchange Daemon
 -------------------------------------------------------------
 
-"alfred is a user space daemon to efficiently[tm] flood the network with useless data - like vis, weather data, network notes, etc" - Marek Lindner, 2012
+"alfred is a user space daemon to efficiently[tm] flood the network with
+ useless data - like vis, weather data, network notes, etc"
+   - Marek Lindner, 2012
 
-[TODO: some more useful description here]
+Introduction
+------------
+
+alfred is a user space daemon for distributing arbitrary local information over
+the mesh/network in a decentralized fashion. This data can be anything which
+appears to be useful - originally designed to replace the batman-adv
+visualization (vis), you may distribute hostnames, phone books, administration
+information, DNS information, the local weather forecast ...
+
+alfred runs as daemon in the background of the system. A user may insert
+information by using the alfred binary in client mode, or use special programs
+to communicate with alfred (done via unix sockets). alfred then takes care of
+distributing the local infomration to other alfred servers on other nodes.
+This is done via IPv6 link-local multicast, and does not require any
+configuration. A user can request data from alfred, and will receive the
+information available from all alfred servers in the network.
+
+Compilation
+-----------
+
+alfred depends on:
+ * librt (usually part of libc)
+ * IPv6 support in the kernel/host system
+
+To compile alfred, simply type:
+
+ $ make
+
+This will compile both alfred and vis. To install, use
+
+ $ make install
+
+(with the right privileges).
+
+If you don't want to compile vis, add the directive CONFIG_ALFRED_VIS=n:
+
+ $ make CONFIG_ALFRED_VIS=n 
+ $ make CONFIG_ALFRED_VIS=n install
+
+Usage
+-----
+
+First, alfred must run as server to be used. This can either be done by some
+init-scripts from your distribution (if you have received alfred as a package
+with your distribution). Please see their documentation how to configure alfred
+in this case. In any case, you can still run alfred from the command line. The
+relevant options are:
+
+  -i, --interface             specify the interface to listen on
+  -b                          specify the batman-adv interface configured on
+                              the system (default: bat0). use 'none' to disable
+                              the batman-adv based best server selection
+  -m, --master                start up the daemon in master mode, which
+                              accepts data from slaves and synces it with
+                              other masters
+
+The -b option is optional, and only needed if you run alfred on a batman-adv
+interface not called bat0, or if you don't use batman-adv at all
+(use '-b none'). In this case, alfred will still work but will not be able to
+find the best next server based on metrics.
+
+alfred servers may either run as master or slave in the network. Masters will
+announce their status via broadcast, so that slaves can find them. Slaves will
+then send their data to their nearest master (based on TQ). Masters will
+exchange their data (which they have received from slaves or got on their own)
+with other masters. By using masters and slaves, overhead can be reduced while
+still keeping redundancy (by having multiple masters). Obviously, at least one
+master must be present in the network to let any data exchange happen. Also
+having all nodes in master mode is possible (for maximum decentrality and
+overhead).
+
+To put it together, let us start alfred in master mode on our bridge br0
+(assuming that this bridge includes the batman interface bat0):
+
+ $ alfred -i br0 -m
+
+Now that the server is running, let us input some data. This can be done by
+using the alfred binary in client mode:
+
+ $ cat /etc/hostname | alfred -s 64
+
+This will set the hostname as data for datatype 64. Note that 0 - 63 are reserved
+(please send us an e-mail if you want to register a datatype), and can not be
+used on the commandline. We skip the version paramter here, where you could
+specify which version this data has and filter for it. Skipping the parameter
+is as setting the parameter to 0 ('-V 0').
+
+After the hostname has been set on a few alfred hosts, the can be retrieved again:
+
+ $ alfred -r 64
+{ "fe:f1:00:00:01:01", "OpenWRT-node-1\x0a" },
+{ "fe:f1:00:00:02:01", "OpenWRT-node-2\x0a" },
+{ "fe:f1:00:00:03:01", "OpenWRT-node-3\x0a" },
+
+Note that the information must be periodically written again to alfred, otherwise
+it will timeout and alfred will forget about it (after 10 minutes).
+
+Vis
+---
+
+Vis can be used to visualize your batman-adv mesh network. It read the neighbor
+information and local client table and distributes this information via alfred
+in the network. By gathering this local information, any vis node can get the
+whole picture of the network.
+
+Vis, similar to to alfred, combines server and client functionality in the 'vis'
+binary. The vis server must be started to let vis work:
+
+ $ vis -i bat0 -s
+
+This server will read the neighbor and client information from batman-adv every
+10 seconds and set it in alfred via unix socket. Obviously, the alfred server
+must run too to get this information set.
+
+To get a graphviz-compatible vis output, simply type:
+ $ vis
+digraph {
+        subgraph "cluster_fe:f0:00:00:04:01" {
+                "fe:f0:00:00:04:01"
+        }
+        "fe:f0:00:00:04:01" -> "fe:f0:00:00:05:01" [label="1.000"]
+        "fe:f0:00:00:04:01" -> "fe:f0:00:00:03:01" [label="1.004"]
+        "fe:f0:00:00:04:01" -> "00:00:43:05:00:04" [label="TT"]
+        "fe:f0:00:00:04:01" -> "fe:f1:00:00:04:01" [label="TT"]
+        subgraph "cluster_fe:f0:00:00:02:01" {
+                "fe:f0:00:00:02:01"
+        }
+        "fe:f0:00:00:02:01" -> "fe:f0:00:00:03:01" [label="1.000"]
+        "fe:f0:00:00:02:01" -> "fe:f0:00:00:01:01" [label="1.008"]
+        "fe:f0:00:00:02:01" -> "fe:f0:00:00:08:01" [label="1.000"]
+        "fe:f0:00:00:02:01" -> "fe:f1:00:00:02:01" [label="TT"]
+        "fe:f0:00:00:02:01" -> "00:00:43:05:00:02" [label="TT"]
+        subgraph "cluster_fe:f0:00:00:08:01" {
+                "fe:f0:00:00:08:01"
+        }
+[...]
+}
+
+For a json formatted output, use:
+
+ $ vis -f json
+{ "primary" : "fe:f0:00:00:04:01" }
+{ "router" : "fe:f0:00:00:04:01", "neighbor" : "fe:f0:00:00:05:01", "label" : "1.000" }
+{ "router" : "fe:f0:00:00:04:01", "neighbor" : "fe:f0:00:00:03:01", "label" : "1.008" }
+{ "router" : "fe:f0:00:00:04:01", "gateway" : "00:00:43:05:00:04", "label" : "TT" }
+{ "router" : "fe:f0:00:00:04:01", "gateway" : "fe:f1:00:00:04:01", "label" : "TT" }
+{ "primary" : "fe:f0:00:00:02:01" }
+{ "router" : "fe:f0:00:00:02:01", "neighbor" : "fe:f0:00:00:03:01", "label" : "1.000" }
+{ "router" : "fe:f0:00:00:02:01", "neighbor" : "fe:f0:00:00:01:01", "label" : "1.016" }
+{ "router" : "fe:f0:00:00:02:01", "neighbor" : "fe:f0:00:00:08:01", "label" : "1.000" }
+{ "router" : "fe:f0:00:00:02:01", "gateway" : "fe:f1:00:00:02:01", "label" : "TT" }
+{ "router" : "fe:f0:00:00:02:01", "gateway" : "00:00:43:05:00:02", "label" : "TT" }
+{ "primary" : "fe:f0:00:00:08:01" }
+[...]
+
+License
+-------
+
+alfred and vis are licensed under the terms of version 2 of the GNU General
+Public License (GPL). Please see the LICENSE file.
+
+The file "packet.h" is an exception and not licensed with the GPL. Instead,
+it is licensed using ISC license (see the head of this file). This allows
+programs to include this header file (e.g. for communicating with alfred via
+unix sockets) without enforcing the restrions of the GPL license on this third
+party program.
+
+Contact
+-------
+
+As alfred was developed to help on batman-adv, we share communication channels.
+Please send us comments, experiences, questions, anything :)
+
+IRC:            #batman   on   irc.freenode.org
+Mailing-list:   b.a.t.m.a.n@open-mesh.org (optional  subscription
+                at https://lists.open-mesh.org/mm/listinfo/b.a.t.m.a.n)
+
+If you have test reports/patches/ideas, please read the wiki for further instruction
+on how to contribute:
+
+http://www.open-mesh.org/projects/open-mesh/wiki/Contribute
+
+You can also contact the Authors:
+
+Simon Wunderlich <siwu@hrz.tu-chmnitz.de>
+Sven Eckelmann <sven@open-mesh.com>
+
