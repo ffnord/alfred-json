@@ -15,10 +15,10 @@ visualization (vis), you may distribute hostnames, phone books, administration
 information, DNS information, the local weather forecast ...
 
 alfred runs as daemon in the background of the system. A user may insert
-information by using the alfred binary in client mode, or use special programs
-to communicate with alfred (done via unix sockets). alfred then takes care of
-distributing the local infomration to other alfred servers on other nodes.
-This is done via IPv6 link-local multicast, and does not require any
+information by using the alfred binary on the command line, or use special
+programs to communicate with alfred (done via unix sockets). alfred then takes
+care of distributing the local information to other alfred servers on other
+nodes. This is done via IPv6 link-local multicast, and does not require any
 configuration. A user can request data from alfred, and will receive the
 information available from all alfred servers in the network.
 
@@ -47,11 +47,12 @@ If you don't want to compile vis, add the directive CONFIG_ALFRED_VIS=n:
 Usage
 -----
 
-First, alfred must run as server to be used. This can either be done by some
-init-scripts from your distribution (if you have received alfred as a package
-with your distribution). Please see their documentation how to configure alfred
-in this case. In any case, you can still run alfred from the command line. The
-relevant options are:
+First, alfred must run as daemon (server) in background to be used. This can
+either be done by some init-scripts from your distribution (if you have
+received alfred as a package with your distribution). Please see their
+documentation how to configure alfred in this case. In any event, you can
+still run alfred from the command line. The relevant options are (for a full
+list of options, run alfred -h):
 
   -i, --interface             specify the interface to listen on
   -b                          specify the batman-adv interface configured on
@@ -64,7 +65,7 @@ relevant options are:
 The -b option is optional, and only needed if you run alfred on a batman-adv
 interface not called bat0, or if you don't use batman-adv at all
 (use '-b none'). In this case, alfred will still work but will not be able to
-find the best next server based on metrics.
+find the best next master server based on metrics.
 
 alfred servers may either run as master or slave in the network. Masters will
 announce their status via broadcast, so that slaves can find them. Slaves will
@@ -82,15 +83,16 @@ To put it together, let us start alfred in master mode on our bridge br0
  $ alfred -i br0 -m
 
 Now that the server is running, let us input some data. This can be done by
-using the alfred binary in client mode:
+using the alfred binary in client mode from the command line:
 
  $ cat /etc/hostname | alfred -s 64
 
-This will set the hostname as data for datatype 64. Note that 0 - 63 are reserved
-(please send us an e-mail if you want to register a datatype), and can not be
-used on the commandline. We skip the version paramter here, where you could
-specify which version this data has and filter for it. Skipping the parameter
-is as setting the parameter to 0 ('-V 0').
+This will set the hostname as data for datatype 64. Note that 0 - 63 are
+reserved (please send us an e-mail if you want to register a datatype), and can
+not be used on the commandline. We skipped the version parameter allowing you
+to assign a version to your data which can be filtered by other alfred users.
+Skipping the parameter entirely has the same effect as setting the parameter
+to 0 ('-V 0').
 
 After the hostname has been set on a few alfred hosts, the can be retrieved again:
 
@@ -102,6 +104,12 @@ After the hostname has been set on a few alfred hosts, the can be retrieved agai
 Note that the information must be periodically written again to alfred, otherwise
 it will timeout and alfred will forget about it (after 10 minutes).
 
+One final remark on terminology: If we talk about "servers" and "clients" in
+alfred, we mean the local processes on one machine which talk to each other via
+unix sockets (client connects and talks to servers). On the other hand, "slaves"
+and "masters" are the roles alfred can take over in the network between different
+machines (slaves send information to masters).
+
 Vis
 ---
 
@@ -110,8 +118,8 @@ information and local client table and distributes this information via alfred
 in the network. By gathering this local information, any vis node can get the
 whole picture of the network.
 
-Vis, similar to to alfred, combines server and client functionality in the 'vis'
-binary. The vis server must be started to let vis work:
+Vis, similar to to alfred, combines server (daemon) and client functionality in
+the 'vis' binary. The vis server must be started to let vis work:
 
  $ vis -i bat0 -s
 
