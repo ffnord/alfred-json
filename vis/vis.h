@@ -37,7 +37,7 @@
 #include <netinet/in.h>
 #include "../packet.h"
 #include "../list.h"
-#include "../debugfs.h"
+#include "debugfs.h"
 
 
 #ifndef SOURCE_VERSION
