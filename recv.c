@@ -76,8 +76,11 @@ static int finish_alfred_push_data(struct globals *globals,
 		clock_gettime(CLOCK_MONOTONIC, &dataset->last_seen);
 
 		/* free old buffer */
-		if (dataset->buf)
+		if (dataset->buf) {
 			free(dataset->buf);
+			dataset->data.header.length = 0;
+		}
+
 		dataset->buf = malloc(data_len);
 
 		/* that's not good */
