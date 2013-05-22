@@ -46,7 +46,7 @@ static int finish_alfred_push_data(struct globals *globals,
 	len -= sizeof(*push) - sizeof(push->header);
 	pos = (uint8_t *)push->data;
 
-	while (len > (int)sizeof(*data)) {
+	while (len >= (int)sizeof(*data)) {
 		data = (struct alfred_data *)pos;
 		data_len = ntohs(data->header.length);
 
