@@ -486,6 +486,12 @@ struct vis_v1 *vis_receive_answer_packet(int sock, uint16_t *len)
 	data = push->data;
 	*len = ntohs(data->header.length);
 
+	if (data->header.type != VIS_PACKETTYPE)
+		return NULL;
+
+	if (data->header.version != VIS_PACKETVERSION)
+		return NULL;
+
 	return (struct vis_v1 *) data->data;
 }
 
