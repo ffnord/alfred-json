@@ -389,7 +389,7 @@ int compile_vis_data(struct globals *globals)
 	int iface_n = 0, entries_n = 0;
 
 	list_for_each_entry(i_entry, &globals->iface_list, list) {
-		memcpy(&globals->vis_data->ifaces[entries_n], i_entry->mac, ETH_ALEN);
+		memcpy(&globals->vis_data->ifaces[iface_n], i_entry->mac, ETH_ALEN);
 
 		iface_n++;
 		if (iface_n == 254)
