@@ -41,7 +41,7 @@
 
 
 #ifndef SOURCE_VERSION
-#define SOURCE_VERSION				"2013.3.0"
+#define SOURCE_VERSION				"2013.4.0"
 #endif
 
 #define ALFRED_SOCK_PATH			"/var/run/alfred.sock"
