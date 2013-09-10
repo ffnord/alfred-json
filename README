@@ -97,9 +97,50 @@ to 0 ('-V 0').
 After the hostname has been set on a few alfred hosts, the can be retrieved again:
 
  $ alfred -r 64
-{ "fe:f1:00:00:01:01", "OpenWRT-node-1\x0a" },
-{ "fe:f1:00:00:02:01", "OpenWRT-node-2\x0a" },
-{ "fe:f1:00:00:03:01", "OpenWRT-node-3\x0a" },
+{
+  "fe:f1:00:00:01:01": "{ \"hostname\": \"alfredtest1\", \"firmware\": \"0.3.2.1-1\" }\n",
+  "fe:f1:00:00:02:01": "{ \"key\": \"value\" }\n"
+}
+
+There are three output formats available: json, string (UTF-8) and binary. These can
+be selected using the -f switch. "string" is default.
+
+ $ alfred -r 64 -f string
+{
+  "fe:f1:00:00:01:01": "{ \"hostname\": \"alfredtest1\", \"firmware\": \"0.3.2.1-1\" }\n",
+  "fe:f1:00:00:02:01": "{ \"key\": \"value\" }\n"
+}
+
+String output is wrapped in an JSON object. You'll get a warning if the string is 
+invalid UTF-8.
+
+JSON output tries to interprete the string as an JSON object. You'll get a warning
+if in case the string does not represent a valid JSON object.
+
+ $ alfred -r 64 -f json
+{
+  "fe:f1:00:00:01:01": {
+    "firmware": "0.3.2.1-1",
+    "hostname": "alfredtest1"
+  },
+  "fe:f1:00:00:02:01": {
+    "key": "value"
+  }
+}
+
+Binary output is meant to be parsed by other programs only. The format is:
+
+  struct output {
+    struct item items[n];
+  };
+
+  struct item {
+    uint16_t id_len; // big-endian
+    uint8_t id[id_len];
+
+    uint16_t data_len; // big-endian
+    uint8_t data[data_len];
+  };
 
 Note that the information must be periodically written again to alfred, otherwise
 it will timeout and alfred will forget about it (after 10 minutes).

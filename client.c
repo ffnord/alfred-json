@@ -34,12 +34,29 @@
 int alfred_client_request_data(struct globals *globals)
 {
 	unsigned char buf[MAX_PAYLOAD], *pos;
+	const struct output_formatter *formatter;
 	struct alfred_request_v0 *request;
 	struct alfred_push_data_v0 *push;
 	struct alfred_status_v0 *status;
 	struct alfred_tlv *tlv;
 	struct alfred_data *data;
-	int ret, len, data_len, i;
+	void *formatter_ctx;
+	int ret, len, data_len;
+
+	switch (globals->output_format) {
+		case FORMAT_JSON:
+			formatter = &output_formatter_json;
+			break;
+		case FORMAT_STRING:
+			formatter = &output_formatter_string;
+			break;
+		case FORMAT_BINARY:
+			formatter = &output_formatter_binary;
+			break;
+		default:
+			fprintf(stderr, "Invalid output format!\n");
+			return 0;
+	}
 
 	if (unix_sock_open_client(globals, ALFRED_SOCK_PATH))
 		return -1;
@@ -58,6 +75,8 @@ int alfred_client_request_data(struct globals *globals)
 	if (ret != len)
 		fprintf(stderr, "%s: only wrote %d of %d bytes: %s\n",
 			__func__, ret, len, strerror(errno));
+
+	formatter_ctx = formatter->prepare();
 
 	push = (struct alfred_push_data_v0 *)buf;
 	tlv = (struct alfred_tlv *)buf;
@@ -100,29 +119,18 @@ int alfred_client_request_data(struct globals *globals)
 
 		pos = data->data;
 
-		printf("{ \"%02x:%02x:%02x:%02x:%02x:%02x\", \"",
-		       data->source[0], data->source[1],
-		       data->source[2], data->source[3],
-		       data->source[4], data->source[5]);
-		for (i = 0; i < data_len; i++) {
-			if (pos[i] == '"')
-				printf("\\\"");
-			else if (pos[i] == '\\')
-				printf("\\\\");
-			else if (!isprint(pos[i]))
-				printf("\\x%02x", pos[i]);
-			else
-				printf("%c", pos[i]);
-		}
-
-		printf("\" },\n");
+		formatter->push(formatter_ctx, data->source, ETH_ALEN, pos, data_len);
 	}
+
+	formatter->finalize(formatter_ctx);
 
 	unix_sock_close(globals);
 
 	return 0;
 
 recv_err:
+	formatter->cancel(formatter_ctx);
+
 	/* read the rest of the status message */
 	ret = read(globals->unix_sock, buf + sizeof(*tlv),
 		   sizeof(*status) - sizeof(*tlv));

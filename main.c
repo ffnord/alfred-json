@@ -39,6 +39,7 @@ static void alfred_usage(void)
 	printf("                              for the supplied data type (0-255)\n");
 	printf("  -r, --request [data type]   collect data from the network and prints\n");
 	printf("                              it on the network\n");
+	printf("  -f, --format <format>       output format (\"json\", \"string\" (default) or \"binary\")\n");
 	printf("  -V, --req-version           specify the data version set for -s\n");
 	printf("\n");
 	printf("server mode options:\n");
@@ -61,6 +62,7 @@ static struct globals *alfred_init(int argc, char *argv[])
 	struct option long_options[] = {
 		{"set-data",	required_argument,	NULL,	's'},
 		{"request",	required_argument,	NULL,	'r'},
+		{"format",	required_argument,	NULL,	'f'},
 		{"interface",	required_argument,	NULL,	'i'},
 		{"master",	no_argument,		NULL,	'm'},
 		{"help",	no_argument,		NULL,	'h'},
@@ -81,10 +83,11 @@ static struct globals *alfred_init(int argc, char *argv[])
 	globals->best_server = NULL;
 	globals->clientmode_version = 0;
 	globals->mesh_iface = "bat0";
+	globals->output_format = FORMAT_STRING;
 
 	time_random_seed();
 
-	while ((opt = getopt_long(argc, argv, "ms:r:hi:b:vV:", long_options,
+	while ((opt = getopt_long(argc, argv, "ms:r:f:hi:b:vV:", long_options,
 				  &opt_ind)) != -1) {
 		switch (opt) {
 		case 'r':
@@ -96,6 +99,14 @@ static struct globals *alfred_init(int argc, char *argv[])
 			}
 			globals->clientmode_arg = i;
 
+			break;
+		case 'f':
+			if (strncmp(optarg, "json", 4) == 0)
+				globals->output_format = FORMAT_JSON;
+			else if (strncmp(optarg, "string", 6) == 0)
+				globals->output_format = FORMAT_STRING;
+			else if (strncmp(optarg, "binary", 6) == 0)
+				globals->output_format = FORMAT_BINARY;
 			break;
 		case 's':
 			globals->clientmode = CLIENT_SET_DATA;

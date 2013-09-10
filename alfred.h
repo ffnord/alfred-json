@@ -88,6 +88,12 @@ enum clientmode {
 	CLIENT_SET_DATA,
 };
 
+enum output_format {
+	FORMAT_JSON,
+	FORMAT_STRING,
+	FORMAT_BINARY,
+};
+
 struct globals {
 	struct ether_addr hwaddr;
 	struct in6_addr address;
@@ -97,6 +103,7 @@ struct globals {
 	char *mesh_iface;
 	enum opmode opmode;
 	enum clientmode clientmode;
+	enum output_format output_format;
 	int clientmode_arg;
 	int clientmode_version;
 
@@ -108,12 +115,23 @@ struct globals {
 	struct hashtable_t *transaction_hash;
 };
 
+struct output_formatter {
+	void* (*prepare)(void);
+	void (*push)(void *ctx, unsigned char *id, size_t id_len, unsigned char *data, size_t data_len);
+	void (*finalize)(void *ctx);
+	void (*cancel)(void *ctx);
+};
+
 #define debugMalloc(size, num)	malloc(size)
 #define debugFree(ptr, num)	free(ptr)
 
 #define MAX_PAYLOAD ((1 << 16) - 1)
 
 extern const struct in6_addr in6addr_localmcast;
+
+extern const struct output_formatter output_formatter_json;
+extern const struct output_formatter output_formatter_string;
+extern const struct output_formatter output_formatter_binary;
 
 /* server.c */
 int alfred_server(struct globals *globals);
