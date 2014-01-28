@@ -69,7 +69,7 @@ int alfred_client_request_data(struct globals *globals)
 	request->header.length = sizeof(*request) - sizeof(request->header);
 	request->header.length = htons(request->header.length);
 	request->requested_type = globals->clientmode_arg;
-	request->tx_id = get_random_id();
+	request->tx_id = random();
 
 	ret = write(globals->unix_sock, buf, len);
 	if (ret != len)
@@ -143,46 +143,4 @@ recv_err:
 	fprintf(stderr, "Request failed with %d\n", status->tx.seqno);
 
 	return status->tx.seqno;;
-}
-
-int alfred_client_set_data(struct globals *globals)
-{
-	unsigned char buf[MAX_PAYLOAD];
-	struct alfred_push_data_v0 *push;
-	struct alfred_data *data;
-	int ret, len;
-
-	if (unix_sock_open_client(globals, ALFRED_SOCK_PATH))
-		return -1;
-
-	push = (struct alfred_push_data_v0 *)buf;
-	data = push->data;
-	len = sizeof(*push) + sizeof(*data);
-	while (!feof(stdin)) {
-		ret = fread(&buf[len], 1, sizeof(buf) - len, stdin);
-		len += ret;
-
-		if (sizeof(buf) == len)
-			break;
-	}
-
-	push->header.type = ALFRED_PUSH_DATA;
-	push->header.version = ALFRED_VERSION;
-	push->header.length = htons(len - sizeof(push->header));
-	push->tx.id = get_random_id();
-	push->tx.seqno = htons(0);
-
-	/* we leave data->source "empty" */
-	memset(data->source, 0, sizeof(data->source));
-	data->header.type = globals->clientmode_arg;
-	data->header.version = globals->clientmode_version;
-	data->header.length = htons(len - sizeof(*push) - sizeof(*data));
-
-	ret = write(globals->unix_sock, buf, len);
-	if (ret != len)
-		fprintf(stderr, "%s: only wrote %d of %d bytes: %s\n",
-			__func__, ret, len, strerror(errno));
-
-	unix_sock_close(globals);
-	return 0;
 }

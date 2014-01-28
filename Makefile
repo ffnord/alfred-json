@@ -19,8 +19,8 @@
 #
 
 # alfred build
-BINARY_NAME = alfred
-OBJ = main.o server.o client.o netsock.o send.o recv.o hash.o unix_sock.o util.o debugfs.o batadv_query.o output_string.o output_json.o output_binary.o
+BINARY_NAME = alfred-json
+OBJ = main.o client.o unix_sock.o output_string.o output_json.o output_binary.o
 
 # alfred flags and options
 CFLAGS += -pedantic -Wall -W -std=gnu99 -fno-strict-aliasing -MD
@@ -56,15 +56,8 @@ ifneq ($(REVISION),)
 CPPFLAGS += -DSOURCE_VERSION=\"$(REVISION)\"
 endif
 
-ifneq ($(CONFIG_ALFRED_VIS),n)
-	VIS_ALL=vis-all
-	VIS_CLEAN=vis-clean
-	VIS_INSTALL=vis-install
-endif
-
-
 # default target
-all: $(BINARY_NAME) $(VIS_ALL)
+all: $(BINARY_NAME)
 
 # standard build rules
 .SUFFIXES: .o .c
@@ -74,24 +67,15 @@ all: $(BINARY_NAME) $(VIS_ALL)
 $(BINARY_NAME): $(OBJ)
 	$(LINK.o) $^ $(LDLIBS) -o $@
 
-clean:	$(VIS_CLEAN)
+clean:
 	$(RM) $(BINARY_NAME) $(OBJ) $(DEP)
 
-install: $(BINARY_NAME) $(VIS_INSTALL)
+install: $(BINARY_NAME)
 	$(MKDIR) $(DESTDIR)$(SBINDIR)
 	$(INSTALL) -m 0755 $(BINARY_NAME) $(DESTDIR)$(SBINDIR)
-
-vis-install:
-	$(MAKE) -C vis install
-
-vis-all:
-	$(MAKE) -C vis all
-
-vis-clean:
-	$(MAKE) -C vis clean
 
 # load dependencies
 DEP = $(OBJ:.o=.d)
 -include $(DEP)
 
-.PHONY: all clean install vis-install vis-all vis-clean
+.PHONY: all clean install
