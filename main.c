@@ -33,9 +33,8 @@
 
 static void alfred_usage(void)
 {
-	printf("Usage: alfred-json -r <data type> [-f <format>]\n");
-	printf("  -r, --request [data type]   collect data from the network and prints\n");
-	printf("                              it on the network\n");
+	printf("Usage: alfred-json -r <data type> [-f <format>]\n\n");
+	printf("  -r, --request [data type]   retrieve data from the network\n");
 	printf("  -f, --format <format>       output format (\"json\" (default), \"string\" or \"binary\")\n");
 	printf("  -h, --help                  this help\n");
 	printf("\n");
