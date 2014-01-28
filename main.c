@@ -36,7 +36,7 @@ static void alfred_usage(void)
 	printf("Usage: alfred-json -r <data type> [-f <format>]\n");
 	printf("  -r, --request [data type]   collect data from the network and prints\n");
 	printf("                              it on the network\n");
-	printf("  -f, --format <format>       output format (\"json\", \"string\" (default) or \"binary\")\n");
+	printf("  -f, --format <format>       output format (\"json\" (default), \"string\" or \"binary\")\n");
 	printf("  -h, --help                  this help\n");
 	printf("\n");
 }
@@ -64,7 +64,7 @@ static struct globals *alfred_init(int argc, char *argv[])
 	globals->best_server = NULL;
 	globals->clientmode_version = 0;
 	globals->mesh_iface = "bat0";
-	globals->output_format = FORMAT_STRING;
+	globals->output_format = FORMAT_JSON;
 
 	while ((opt = getopt_long(argc, argv, "r:f:h", long_options,
 				  &opt_ind)) != -1) {
