@@ -23,12 +23,6 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <string.h>
-#include <unistd.h>
-#include <errno.h>
-#include <arpa/inet.h>
-#include <sys/select.h>
-#include <sys/time.h>
-#include <signal.h>
 #include "alfred.h"
 
 static void alfred_usage(void)
@@ -57,19 +51,13 @@ static struct globals *alfred_init(int argc, char *argv[])
 
 	memset(globals, 0, sizeof(*globals));
 
-	globals->opmode = OPMODE_SLAVE;
-	globals->clientmode = CLIENT_NONE;
-	globals->interface = NULL;
-	globals->best_server = NULL;
-	globals->clientmode_version = 0;
-	globals->mesh_iface = "bat0";
 	globals->output_format = FORMAT_JSON;
+	globals->clientmode_arg = -1;
 
 	while ((opt = getopt_long(argc, argv, "r:f:h", long_options,
 				  &opt_ind)) != -1) {
 		switch (opt) {
 		case 'r':
-			globals->clientmode = CLIENT_REQUEST_DATA;
 			i = atoi(optarg);
 			if (i < ALFRED_MAX_RESERVED_TYPE || i > 255) {
 				fprintf(stderr, "bad data type argument\n");
@@ -105,14 +93,10 @@ int main(int argc, char *argv[])
 	if (!globals)
 		return 1;
 
-	switch (globals->clientmode) {
-		case CLIENT_REQUEST_DATA:
+	if (globals->clientmode_arg > 0)
 			return alfred_client_request_data(globals);
-			break;
-		default:
+	else
 			alfred_usage();
-			break;
-	}
 
 	return 1;
 }

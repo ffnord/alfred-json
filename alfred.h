@@ -24,51 +24,10 @@
 #endif
 
 #include <stdint.h>
-#include <linux/if_ether.h>
 #include <netinet/ether.h>
-#include <netinet/in.h>
-#include <time.h>
 #include "packet.h"
 
-#define ALFRED_INTERVAL			10
-#define ALFRED_REQUEST_TIMEOUT		10
-#define ALFRED_SERVER_TIMEOUT		60
-#define ALFRED_DATA_TIMEOUT		600
 #define ALFRED_SOCK_PATH		"/var/run/alfred.sock"
-#define NO_FILTER			-1
-
-enum data_source {
-	SOURCE_LOCAL = 0,
-	SOURCE_FIRST_HAND = 1,
-	SOURCE_SYNCED = 2,
-};
-
-struct dataset {
-	struct alfred_data data;
-	unsigned char *buf;
-
-	struct timespec last_seen;
-	enum data_source data_source;
-	uint8_t local_data;
-};
-
-struct server {
-	struct ether_addr hwaddr;
-	struct in6_addr address;
-	struct timespec last_seen;
-	uint8_t tq;
-};
-
-enum opmode {
-	OPMODE_SLAVE,
-	OPMODE_MASTER,
-};
-
-enum clientmode {
-	CLIENT_NONE,
-	CLIENT_REQUEST_DATA,
-	CLIENT_SET_DATA,
-};
 
 enum output_format {
 	FORMAT_JSON,
@@ -77,24 +36,9 @@ enum output_format {
 };
 
 struct globals {
-	struct ether_addr hwaddr;
-	struct in6_addr address;
-	uint32_t scope_id;
-	struct server *best_server;	/* NULL if we are a server ourselves */
-	char *interface;
-	char *mesh_iface;
-	enum opmode opmode;
-	enum clientmode clientmode;
 	enum output_format output_format;
 	int clientmode_arg;
-	int clientmode_version;
-
-	int netsock;
 	int unix_sock;
-
-	struct hashtable_t *server_hash;
-	struct hashtable_t *data_hash;
-	struct hashtable_t *transaction_hash;
 };
 
 struct output_formatter {
@@ -104,12 +48,7 @@ struct output_formatter {
 	void (*cancel)(void *ctx);
 };
 
-#define debugMalloc(size, num)	malloc(size)
-#define debugFree(ptr, num)	free(ptr)
-
 #define MAX_PAYLOAD ((1 << 16) - 1)
-
-extern const struct in6_addr in6addr_localmcast;
 
 extern const struct output_formatter output_formatter_json;
 extern const struct output_formatter output_formatter_string;
@@ -120,8 +59,3 @@ int alfred_client_request_data(struct globals *globals);
 /* unix_sock.c */
 int unix_sock_open_client(struct globals *globals, char *path);
 int unix_sock_close(struct globals *globals);
-/* util.c */
-int time_diff(struct timespec *tv1, struct timespec *tv2,
-	      struct timespec *tvdiff);
-void time_random_seed(void);
-uint16_t get_random_id(void);
