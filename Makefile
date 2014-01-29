@@ -20,7 +20,7 @@
 
 # alfred build
 BINARY_NAME = alfred-json
-OBJ = main.o client.o unix_sock.o output_string.o output_json.o output_binary.o
+OBJ = main.o unix_sock.o output_string.o output_json.o output_binary.o
 
 # alfred flags and options
 CFLAGS += -pedantic -Wall -W -std=gnu99 -fno-strict-aliasing -MD
