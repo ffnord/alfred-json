@@ -29,14 +29,8 @@
 
 #define ALFRED_SOCK_PATH		"/var/run/alfred.sock"
 
-enum output_format {
-	FORMAT_JSON,
-	FORMAT_STRING,
-	FORMAT_BINARY,
-};
-
 struct globals {
-	enum output_format output_format;
+  const struct output_formatter *output_formatter;
 	int clientmode_arg;
 	int unix_sock;
 };

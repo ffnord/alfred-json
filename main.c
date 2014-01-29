@@ -54,7 +54,7 @@ static struct globals *alfred_init(int argc, char *argv[])
 
 	memset(globals, 0, sizeof(*globals));
 
-	globals->output_format = FORMAT_JSON;
+	globals->output_formatter = &output_formatter_json;
 	globals->clientmode_arg = -1;
 
 	while ((opt = getopt_long(argc, argv, "r:f:h", long_options,
@@ -71,11 +71,15 @@ static struct globals *alfred_init(int argc, char *argv[])
 			break;
 		case 'f':
 			if (strncmp(optarg, "json", 4) == 0)
-				globals->output_format = FORMAT_JSON;
+				globals->output_formatter = &output_formatter_json;
 			else if (strncmp(optarg, "string", 6) == 0)
-				globals->output_format = FORMAT_STRING;
+				globals->output_formatter = &output_formatter_string;
 			else if (strncmp(optarg, "binary", 6) == 0)
-				globals->output_format = FORMAT_BINARY;
+				globals->output_formatter = &output_formatter_binary;
+			else {
+				fprintf(stderr, "Invalid output format!\n");
+				return NULL;
+			}
 			break;
 		case 'h':
 		default:
@@ -90,7 +94,6 @@ static struct globals *alfred_init(int argc, char *argv[])
 int request_data(struct globals *globals)
 {
 	unsigned char buf[MAX_PAYLOAD], *pos;
-	const struct output_formatter *formatter;
 	struct alfred_request_v0 *request;
 	struct alfred_push_data_v0 *push;
 	struct alfred_status_v0 *status;
@@ -98,21 +101,6 @@ int request_data(struct globals *globals)
 	struct alfred_data *data;
 	void *formatter_ctx;
 	int ret, len, data_len;
-
-	switch (globals->output_format) {
-		case FORMAT_JSON:
-			formatter = &output_formatter_json;
-			break;
-		case FORMAT_STRING:
-			formatter = &output_formatter_string;
-			break;
-		case FORMAT_BINARY:
-			formatter = &output_formatter_binary;
-			break;
-		default:
-			fprintf(stderr, "Invalid output format!\n");
-			return 0;
-	}
 
 	if (unix_sock_open_client(globals, ALFRED_SOCK_PATH))
 		return -1;
@@ -132,7 +120,7 @@ int request_data(struct globals *globals)
 		fprintf(stderr, "%s: only wrote %d of %d bytes: %s\n",
 			__func__, ret, len, strerror(errno));
 
-	formatter_ctx = formatter->prepare();
+	formatter_ctx = globals->output_formatter->prepare();
 
 	push = (struct alfred_push_data_v0 *)buf;
 	tlv = (struct alfred_tlv *)buf;
@@ -175,17 +163,17 @@ int request_data(struct globals *globals)
 
 		pos = data->data;
 
-		formatter->push(formatter_ctx, data->source, ETH_ALEN, pos, data_len);
+		globals->output_formatter->push(formatter_ctx, data->source, ETH_ALEN, pos, data_len);
 	}
 
-	formatter->finalize(formatter_ctx);
+	globals->output_formatter->finalize(formatter_ctx);
 
 	unix_sock_close(globals);
 
 	return 0;
 
 recv_err:
-	formatter->cancel(formatter_ctx);
+	globals->output_formatter->cancel(formatter_ctx);
 
 	/* read the rest of the status message */
 	ret = read(globals->unix_sock, buf + sizeof(*tlv),
