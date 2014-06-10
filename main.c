@@ -27,6 +27,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include "alfred.h"
+#include "zcat.h"
 
 static void alfred_usage(void)
 {
@@ -163,7 +164,22 @@ int request_data(struct globals *globals)
 
 		pos = data->data;
 
+		/* try decompressing data using GZIP */
+
+		unsigned char *buffer = NULL;
+		size_t buffer_len;
+
+		buffer_len = zcat(&buffer, pos, data_len);
+
+		if (buffer_len > 0) {
+			pos = buffer;
+			data_len = buffer_len;
+		}
+
 		globals->output_formatter->push(formatter_ctx, data->source, ETH_ALEN, pos, data_len);
+
+		if (buffer_len > 0)
+			free(buffer);
 	}
 
 	globals->output_formatter->finalize(formatter_ctx);

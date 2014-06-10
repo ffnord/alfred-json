@@ -71,6 +71,15 @@ Binary output is meant to be parsed by other programs only. The format is:
     uint8_t data[data_len];
   };
 
+Transparent GZIP decompression
+------------------------------
+
+alfred-json will automatically and transparently decompress GZIP compressed
+data:
+
+ $ echo Hello World | gzip | alfred -s 150
+ $ alfred-json -r 150 -f string
+
 License
 -------
 
