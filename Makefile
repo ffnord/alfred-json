@@ -46,7 +46,7 @@ LINK.o = $(Q_LD)$(CC) $(CFLAGS) $(LDFLAGS) $(TARGET_ARCH)
 
 # standard install paths
 PREFIX = /usr/local
-SBINDIR = $(PREFIX)/sbin
+BINDIR = $(PREFIX)/bin
 
 # try to generate revision
 REVISION= $(shell	if [ -d .git ]; then \
@@ -71,8 +71,8 @@ clean:
 	$(RM) $(BINARY_NAME) $(OBJ) $(DEP)
 
 install: $(BINARY_NAME)
-	$(MKDIR) $(DESTDIR)$(SBINDIR)
-	$(INSTALL) -m 0755 $(BINARY_NAME) $(DESTDIR)$(SBINDIR)
+	$(MKDIR) $(DESTDIR)$(BINDIR)
+	$(INSTALL) -m 0755 $(BINARY_NAME) $(DESTDIR)$(BINDIR)
 
 # load dependencies
 DEP = $(OBJ:.o=.d)
