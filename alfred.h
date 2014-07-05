@@ -31,15 +31,15 @@
 
 struct globals {
   const struct output_formatter *output_formatter;
-	int clientmode_arg;
-	int unix_sock;
+  int clientmode_arg;
+  int unix_sock;
 };
 
 struct output_formatter {
-	void* (*prepare)(void);
-	void (*push)(void *ctx, unsigned char *id, size_t id_len, unsigned char *data, size_t data_len);
-	void (*finalize)(void *ctx);
-	void (*cancel)(void *ctx);
+  void* (*prepare)(void);
+  void (*push)(void *ctx, unsigned char *id, size_t id_len, unsigned char *data, size_t data_len);
+  void (*finalize)(void *ctx);
+  void (*cancel)(void *ctx);
 };
 
 #define MAX_PAYLOAD ((1 << 16) - 1)
