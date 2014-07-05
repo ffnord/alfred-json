@@ -34,6 +34,7 @@ static void alfred_usage(void)
 	printf("Usage: alfred-json -r <data type> [-f <format>]\n\n");
 	printf("  -r, --request [data type]   retrieve data from the network\n");
 	printf("  -f, --format <format>       output format (\"json\" (default), \"string\" or \"binary\")\n");
+	printf("  -z, --gzip                  enable transparent decompression (GZip)\n");
 	printf("  -h, --help                  this help\n");
 	printf("\n");
 }
@@ -45,6 +46,7 @@ static struct globals *alfred_init(int argc, char *argv[])
 	struct option long_options[] = {
 		{"request",	required_argument,	NULL,	'r'},
 		{"format",	required_argument,	NULL,	'f'},
+		{"gzip",	no_argument,		NULL,	'z'},
 		{"help",	no_argument,		NULL,	'h'},
 		{NULL,		0,			NULL,	0},
 	};
@@ -56,8 +58,7 @@ static struct globals *alfred_init(int argc, char *argv[])
 	globals->output_formatter = &output_formatter_json;
 	globals->clientmode_arg = -1;
 
-	while ((opt = getopt_long(argc, argv, "r:f:h", long_options,
-				  &opt_ind)) != -1) {
+	while ((opt = getopt_long(argc, argv, "r:f:h:z", long_options, &opt_ind)) != -1) {
 		switch (opt) {
 		case 'r':
 			i = atoi(optarg);
@@ -79,6 +80,9 @@ static struct globals *alfred_init(int argc, char *argv[])
 				fprintf(stderr, "Invalid output format!\n");
 				return NULL;
 			}
+			break;
+		case 'z':
+			globals->gzip = 1;
 			break;
 		case 'h':
 		default:
@@ -162,16 +166,18 @@ int request_data(struct globals *globals)
 
 		pos = data->data;
 
-		/* try decompressing data using GZIP */
-
 		unsigned char *buffer = NULL;
-		size_t buffer_len;
+		size_t buffer_len = 0;
 
-		buffer_len = zcat(&buffer, pos, data_len);
+		if (globals->gzip) {
+			/* try decompressing data using GZIP */
 
-		if (buffer_len > 0) {
-			pos = buffer;
-			data_len = buffer_len;
+			buffer_len = zcat(&buffer, pos, data_len);
+
+			if (buffer_len > 0) {
+				pos = buffer;
+				data_len = buffer_len;
+			}
 		}
 
 		globals->output_formatter->push(formatter_ctx, data->source, ETH_ALEN, pos, data_len);

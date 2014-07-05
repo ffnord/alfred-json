@@ -33,6 +33,7 @@ struct globals {
   const struct output_formatter *output_formatter;
   int clientmode_arg;
   int unix_sock;
+  int gzip;
 };
 
 struct output_formatter {
