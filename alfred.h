@@ -20,7 +20,7 @@
  */
 
 #ifndef SOURCE_VERSION
-#define SOURCE_VERSION			"2013.4.0"
+#define SOURCE_VERSION			"version unknown"
 #endif
 
 #include <stdint.h>
