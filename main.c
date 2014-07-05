@@ -49,11 +49,9 @@ static struct globals *alfred_init(int argc, char *argv[])
 		{NULL,		0,			NULL,	0},
 	};
 
-	globals = malloc(sizeof(*globals));
+	globals = calloc(1, sizeof(*globals));
 	if (!globals)
 		return NULL;
-
-	memset(globals, 0, sizeof(*globals));
 
 	globals->output_formatter = &output_formatter_json;
 	globals->clientmode_arg = -1;
