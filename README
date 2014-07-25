@@ -6,6 +6,7 @@ Compilation
 
 alfred-json depends on:
  * libjansson
+ * zlib
 
 To compile, simply type:
 
