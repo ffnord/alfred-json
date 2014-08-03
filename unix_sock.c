@@ -26,7 +26,7 @@
 #include <sys/un.h>
 #include "alfred.h"
 
-int unix_sock_open_client(struct globals *globals, char *path)
+int unix_sock_open_client(struct globals *globals)
 {
 	struct sockaddr_un addr;
 
@@ -39,7 +39,7 @@ int unix_sock_open_client(struct globals *globals, char *path)
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sun_family = AF_LOCAL;
-	strcpy(addr.sun_path, path);
+	strcpy(addr.sun_path, globals->unix_path);
 
 	if (connect(globals->unix_sock, (struct sockaddr *)&addr,
 		    sizeof(addr)) < 0) {
