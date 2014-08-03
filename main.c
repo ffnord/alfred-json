@@ -32,9 +32,10 @@
 static void alfred_usage(void)
 {
 	printf("alfred-json %s\n\n", SOURCE_VERSION);
-	printf("Usage: alfred-json -r <data type> [-f <format>] [-z]\n\n");
+	printf("Usage: alfred-json -r <data type> [-f <format>] [-z] [-s <socket>]\n\n");
 	printf("  -r, --request [data type]   retrieve data from the network\n");
 	printf("  -f, --format <format>       output format (\"json\" (default), \"string\" or \"binary\")\n");
+	printf("  -s, --socket <path>         path to alfred unix socket\n");
 	printf("  -z, --gzip                  enable transparent decompression (GZip)\n");
 	printf("  -h, --help                  this help\n");
 	printf("\n");
@@ -47,6 +48,7 @@ static struct globals *alfred_init(int argc, char *argv[])
 	struct option long_options[] = {
 		{"request",	required_argument,	NULL,	'r'},
 		{"format",	required_argument,	NULL,	'f'},
+		{"socket",	required_argument,	NULL,	's'},
 		{"gzip",	no_argument,		NULL,	'z'},
 		{"help",	no_argument,		NULL,	'h'},
 		{NULL,		0,			NULL,	0},
@@ -58,8 +60,10 @@ static struct globals *alfred_init(int argc, char *argv[])
 
 	globals->output_formatter = &output_formatter_json;
 	globals->clientmode_arg = -1;
+	globals->socket_path = "/var/run/alfred.sock";
 
-	while ((opt = getopt_long(argc, argv, "r:f:h:z", long_options, &opt_ind)) != -1) {
+
+	while ((opt = getopt_long(argc, argv, "r:f:s:h:z", long_options, &opt_ind)) != -1) {
 		switch (opt) {
 		case 'r':
 			i = atoi(optarg);
@@ -81,6 +85,9 @@ static struct globals *alfred_init(int argc, char *argv[])
 				fprintf(stderr, "Invalid output format!\n");
 				return NULL;
 			}
+			break;
+		case 's':
+			globals->socket_path = optarg;
 			break;
 		case 'z':
 			globals->gzip = 1;
@@ -106,7 +113,7 @@ int request_data(struct globals *globals)
 	void *formatter_ctx;
 	int ret, len, data_len;
 
-	if (unix_sock_open_client(globals, ALFRED_SOCK_PATH))
+	if (unix_sock_open_client(globals))
 		return -1;
 
 	request = (struct alfred_request_v0 *)buf;
