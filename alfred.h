@@ -27,12 +27,13 @@
 #include <netinet/ether.h>
 #include "packet.h"
 
-#define ALFRED_SOCK_PATH		"/var/run/alfred.sock"
+#define ALFRED_SOCK_PATH_DEFAULT	"/var/run/alfred.sock"
 
 struct globals {
   const struct output_formatter *output_formatter;
   int clientmode_arg;
   int unix_sock;
+  const char *unix_path;
   int gzip;
 };
 
@@ -52,5 +53,5 @@ extern const struct output_formatter output_formatter_binary;
 /* client.c */
 int alfred_client_request_data(struct globals *globals);
 /* unix_sock.c */
-int unix_sock_open_client(struct globals *globals, char *path);
+int unix_sock_open_client(struct globals *globals);
 int unix_sock_close(struct globals *globals);
