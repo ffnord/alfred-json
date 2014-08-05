@@ -1,7 +1,5 @@
 /*
- * Copyright (C) 2012 B.A.T.M.A.N. contributors:
- *
- * Simon Wunderlich
+ * Copyright (C) 2014 Nils Schneider
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -19,21 +17,7 @@
  *
  */
 
-#ifndef SOURCE_VERSION
-#define SOURCE_VERSION			"version unknown"
-#endif
-
-#include <stdint.h>
-#include <netinet/ether.h>
-#include "packet.h"
-
-struct globals {
-  const struct output_formatter *output_formatter;
-  int clientmode_arg;
-  int unix_sock;
-  const char *socket_path;
-  int gzip;
-};
+#pragma once
 
 struct output_formatter {
   void* (*prepare)(void);
@@ -42,14 +26,6 @@ struct output_formatter {
   void (*cancel)(void *ctx);
 };
 
-#define MAX_PAYLOAD ((1 << 16) - 1)
-
 extern const struct output_formatter output_formatter_json;
 extern const struct output_formatter output_formatter_string;
 extern const struct output_formatter output_formatter_binary;
-
-/* client.c */
-int alfred_client_request_data(struct globals *globals);
-/* unix_sock.c */
-int unix_sock_open_client(struct globals *globals);
-int unix_sock_close(struct globals *globals);

@@ -1,6 +1,6 @@
 #include <jansson.h>
 #include <string.h>
-#include "alfred.h"
+#include "output.h"
 
 static void* prepare()
 {

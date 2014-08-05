@@ -1,8 +1,7 @@
 #include <arpa/inet.h>
 #include <stdint.h>
 #include <stdio.h>
-
-#include "alfred.h"
+#include "output.h"
 
 static void* prepare()
 {

@@ -17,8 +17,9 @@
  *
  */
 
-#ifndef _ALFRED_PACKET_H
-#define _ALFRED_PACKET_H
+#pragma once
+
+#include <netinet/ether.h>
 
 #define __packed __attribute__ ((packed))
 
@@ -137,5 +138,3 @@ struct alfred_status_v0 {
 #define ALFRED_VERSION			0
 #define ALFRED_PORT			0x4242
 #define ALFRED_MAX_RESERVED_TYPE	64
-
-#endif

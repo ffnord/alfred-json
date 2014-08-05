@@ -18,13 +18,11 @@
 # 02110-1301, USA
 #
 
-# alfred build
-BINARY_NAME = alfred-json
-OBJ = main.o unix_sock.o output_string.o output_json.o output_binary.o zcat.o
-
-# alfred flags and options
 CFLAGS += -pedantic -Wall -W -std=gnu99 -fno-strict-aliasing -MD
 LDLIBS += -lrt -ljansson -lz
+
+BINARY_NAME = alfred-json
+OBJ = main.o output_string.o output_json.o output_binary.o zcat.o
 
 # disable verbose output
 ifneq ($(findstring $(MAKEFLAGS),s),s)
