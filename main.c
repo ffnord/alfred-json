@@ -67,7 +67,7 @@ static struct globals *alfred_init(int argc, char *argv[])
 		switch (opt) {
 		case 'r':
 			i = atoi(optarg);
-			if (i < ALFRED_MAX_RESERVED_TYPE || i > 255) {
+			if (i < 0 || i > 255) {
 				fprintf(stderr, "bad data type argument\n");
 				return NULL;
 			}
@@ -226,7 +226,7 @@ int main(int argc, char *argv[])
 	if (!globals)
 		return 1;
 
-	if (globals->clientmode_arg > 0)
+	if (globals->clientmode_arg >= 0)
 			return request_data(globals);
 	else
 			alfred_usage();
