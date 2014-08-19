@@ -59,14 +59,15 @@ size_t zcat(unsigned char **output_buffer, const unsigned char *data, const size
 
   inflateEnd(&strm);
 
-  unsigned char *old_buffer = *output_buffer;
-  *output_buffer = realloc(*output_buffer, sizeof(unsigned char) * output_bytes);
-
-  if (*output_buffer == NULL) {
-    free(old_buffer);
-
+  if (output_bytes == 0) {
+    free(*output_buffer);
     return 0;
   }
+
+  *output_buffer = realloc(*output_buffer, sizeof(unsigned char) * output_bytes);
+
+  if (*output_buffer == NULL)
+    return 0;
 
   return output_bytes;
 }
