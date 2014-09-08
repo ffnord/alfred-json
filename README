@@ -19,7 +19,7 @@ To install, use:
 Usage
 -----
 
-First, an alfred daemon must be running. Data can be retreived like this:
+First, an alfred daemon must be running. Data can be retrieved like this:
 
  $ alfred-json -r 64
 {
