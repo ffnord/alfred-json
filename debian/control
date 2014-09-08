@@ -1,0 +1,12 @@
+Source: alfred-json
+Section: utils
+Priority: extra
+Maintainer: Nils Schneider <nils@nilsschneider.net>
+Build-Depends: debhelper (>= 8.0.0), cmake, libjansson-dev, zlib1g-dev
+Standards-Version: 3.9.5
+Homepage: https://github.com/tcatm/alfred-json
+
+Package: alfred-json
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libjansson4, zlib1g
+Description: A.L.F.R.E.D client supporting GZIP decompression and JSON, string and binary output
