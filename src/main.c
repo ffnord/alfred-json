@@ -30,10 +30,6 @@
 #include "packet.h"
 #include "zcat.h"
 
-#ifndef SOURCE_VERSION
-#define SOURCE_VERSION	"version unknown"
-#endif
-
 #define MAX_PAYLOAD ((1 << 16) - 1)
 
 static void alfred_usage(void)
