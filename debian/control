@@ -2,7 +2,7 @@ Source: alfred-json
 Section: utils
 Priority: extra
 Maintainer: Nils Schneider <nils@nilsschneider.net>
-Build-Depends: debhelper (>= 8.0.0), cmake, libjansson-dev, zlib1g-dev
+Build-Depends: debhelper (>= 8.0.0), cmake, pkg-config, libjansson-dev, zlib1g-dev
 Standards-Version: 3.9.5
 Homepage: https://github.com/tcatm/alfred-json
 

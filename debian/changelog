@@ -1,3 +1,10 @@
+alfred-json (0.3.1-1) wheezy; urgency=low
+
+  * fix version number output
+  * depend on pkg-config during build
+
+ --  <nils@philae.metameute.de>  Tue, 09 Sep 2014 13:29:18 +0200
+
 alfred-json (0.3-1) wheezy; urgency=low
 
   * initial release
