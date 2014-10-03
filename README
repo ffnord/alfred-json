@@ -8,6 +8,10 @@ alfred-json depends on:
  * libjansson
  * zlib
 
+Prepare the build using:
+
+ $ cmake .
+
 To compile, simply type:
 
  $ make
