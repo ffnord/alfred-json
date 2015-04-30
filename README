@@ -10,7 +10,9 @@ alfred-json depends on:
 
 Prepare the build using:
 
- $ cmake .
+ $ mkdir build
+ $ cd build/
+ $ cmake ../
 
 To compile, simply type:
 
