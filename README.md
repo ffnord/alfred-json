@@ -9,84 +9,84 @@ alfred-json depends on:
  * zlib
 
 Prepare the build using:
-```sh
- $ mkdir build
- $ cd build/
- $ cmake ../
-```
+
+     $ mkdir build
+     $ cd build/
+     $ cmake ../
+
 To compile, simply type:
-```sh
- $ make
-```
+
+     $ make
+
 To install, use:
-```sh
- $ make install
-```
+
+     $ make install
+
 Usage
 -----
 
 First, an alfred daemon must be running. Data can be retrieved like this:
-```sh
- $ alfred-json -r 64
-{
-  "fe:f1:00:00:01:01": {
-    "firmware": "0.3.2.1-1",
-    "hostname": "alfredtest1"
-  },
-  "fe:f1:00:00:02:01": {
-    "key": "value"
-  }
-}
-```
+
+     $ alfred-json -r 64
+    {
+      "fe:f1:00:00:01:01": {
+        "firmware": "0.3.2.1-1",
+        "hostname": "alfredtest1"
+      },
+      "fe:f1:00:00:02:01": {
+        "key": "value"
+      }
+    }
+
 There are three output formats available: json, string (UTF-8) and binary. These can
 be selected using the -f switch. "json" is default.
-```sh
- $ alfred-json -r 64 -f string
-{
-  "fe:f1:00:00:01:01": "{ \"hostname\": \"alfredtest1\", \"firmware\": \"0.3.2.1-1\" }\n",
-  "fe:f1:00:00:02:01": "{ \"key\": \"value\" }\n"
-}
-```
+
+     $ alfred-json -r 64 -f string
+    {
+      "fe:f1:00:00:01:01": "{ \"hostname\": \"alfredtest1\", \"firmware\": \"0.3.2.1-1\" }\n",
+      "fe:f1:00:00:02:01": "{ \"key\": \"value\" }\n"
+    }
+
 String output is wrapped in an JSON object. You'll get a warning if the string is 
 invalid UTF-8.
 
 JSON output tries to interprete the string as an JSON object. You'll get a warning
 if in case the string does not represent a valid JSON object.
-```sh
- $ alfred-json -r 64 -f json
-{
-  "fe:f1:00:00:01:01": {
-    "firmware": "0.3.2.1-1",
-    "hostname": "alfredtest1"
-  },
-  "fe:f1:00:00:02:01": {
-    "key": "value"
-  }
-}
-```
+
+     $ alfred-json -r 64 -f json
+    {
+      "fe:f1:00:00:01:01": {
+        "firmware": "0.3.2.1-1",
+        "hostname": "alfredtest1"
+      },
+      "fe:f1:00:00:02:01": {
+        "key": "value"
+      }
+    }
+
 Binary output is meant to be parsed by other programs only. The format is:
-```
-  struct output {
-    struct item items[n];
-  };
 
-  struct item {
-    uint16_t id_len; // big-endian
-    uint8_t id[id_len];
+      struct output {
+        struct item items[n];
+      };
 
-    uint16_t data_len; // big-endian
-    uint8_t data[data_len];
-  };
-```
+      struct item {
+        uint16_t id_len; // big-endian
+        uint8_t id[id_len];
+
+        uint16_t data_len; // big-endian
+        uint8_t data[data_len];
+      };
+
 Transparent GZIP decompression
 ------------------------------
 
 alfred-json will automatically and transparently decompress GZIP compressed
 data when the -z option is given:
-```sh
- $ echo Hello World | gzip | alfred -s 150
- $ alfred-json -z -r 150 -f string
-```
+
+     $ echo Hello World | gzip | alfred -s 150
+     $ alfred-json -z -r 150 -f string
+
 License
 -------
 
