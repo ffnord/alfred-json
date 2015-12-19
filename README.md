@@ -7,6 +7,7 @@ Compilation
 alfred-json depends on:
  * libjansson
  * zlib
+(on debian wheezy: `apt-get install zlib1g-dev libjansson-dev cmake`)
 
 Prepare the build using:
 
