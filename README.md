@@ -8,6 +8,8 @@ alfred-json depends on:
  * libjansson
  * zlib
 
+     $ apt-get install cmake libjansson-dev zlib1g-dev
+
 Prepare the build using:
 
      $ mkdir build
