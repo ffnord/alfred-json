@@ -26,6 +26,7 @@
 #include <string.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include "blacklist.h"
 #include "output.h"
 #include "packet.h"
 #include "zcat.h"
@@ -40,6 +41,7 @@ static void alfred_usage(void)
 	printf("  -f, --format <format>       output format (\"json\" (default), \"string\" or \"binary\")\n");
 	printf("  -s, --socket <path>         path to alfred unix socket\n");
 	printf("  -z, --gzip                  enable transparent decompression (GZip)\n");
+        printf("  -i, --ignore <macaddress>   ignore data from given MAC Address (may be repeated)");
 	printf("  -h, --help                  this help\n");
 	printf("\n");
 }
@@ -63,7 +65,7 @@ int unix_sock_open(const char* path)
 }
 
 int request_data(int sock, int request_type, bool gzip,
-  const struct output_formatter *output_formatter)
+  const struct output_formatter *output_formatter, struct blacklist *blacklist)
 {
 	unsigned char buf[MAX_PAYLOAD], *pos;
 	struct alfred_request_v0 *request;
@@ -146,7 +148,8 @@ int request_data(int sock, int request_type, bool gzip,
 			}
 		}
 
-		output_formatter->push(formatter_ctx, data->source, ETH_ALEN, pos, data_len);
+		if (!blacklist_match(blacklist, mac_from_data(data->source, sizeof(data->source))))
+			output_formatter->push(formatter_ctx, data->source, ETH_ALEN, pos, data_len);
 
 		if (buffer_len > 0)
 			free(buffer);
@@ -178,6 +181,8 @@ int main(int argc, char *argv[])
 	bool gzip = false;
 	char *socket_path = "/var/run/alfred.sock";
   struct output_formatter output_formatter = output_formatter_json;
+	struct mac *blacklist_mac;
+	struct blacklist *blacklist = blacklist_new();
 
 	int opt, opt_ind, i;
 	struct option long_options[] = {
@@ -185,11 +190,12 @@ int main(int argc, char *argv[])
 		{"format",	required_argument,	NULL,	'f'},
 		{"socket",	required_argument,	NULL,	's'},
 		{"gzip",	no_argument,	NULL,	'z'},
+		{"ignore",      required_argument, NULL, 'i'},
 		{"help",	no_argument,	NULL,	'h'},
 		{NULL,	0,	NULL,	0},
 	};
 
-	while ((opt = getopt_long(argc, argv, "r:f:s:hz", long_options, &opt_ind)) != -1) {
+	while ((opt = getopt_long(argc, argv, "r:f:s:i:hz", long_options, &opt_ind)) != -1) {
 		switch (opt) {
 		case 'r':
 			i = atoi(optarg);
@@ -215,6 +221,14 @@ int main(int argc, char *argv[])
 		case 's':
 			socket_path = optarg;
 			break;
+		case 'i':
+			blacklist_mac = mac_from_string(optarg);
+			if (NULL != blacklist_mac) {
+				blacklist_append(blacklist, blacklist_mac);
+			} else {
+				fprintf(stderr, "Ignoring invalid MAC address '%s'\n", optarg);
+			}
+			break;
 		case 'z':
 			gzip = true;
 			break;
@@ -234,7 +248,7 @@ int main(int argc, char *argv[])
 		if (sock < 0)
 			return 1;
 
-		ret = request_data(sock, request, gzip, &output_formatter);
+		ret = request_data(sock, request, gzip, &output_formatter, blacklist);
 		close(sock);
 
 		return ret;
